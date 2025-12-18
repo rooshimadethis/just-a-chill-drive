@@ -1,0 +1,60 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/player.tscn" id="1_player"]
+[ext_resource type="Script" path="res://scripts/spawner.gd" id="2_spawner"]
+[ext_resource type="PackedScene" path="res://scenes/gate.tscn" id="3_gate"]
+[ext_resource type="Script" path="res://scripts/tree_spawner.gd" id="4_trees"]
+[ext_resource type="Script" path="res://scripts/game_manager.gd" id="4_gamemanager"]
+[ext_resource type="Script" path="res://scripts/ui_overlay.gd" id="5_ui"]
+
+[sub_resource type="Environment" id="env_1"]
+background_mode = 3
+glow_enabled = true
+glow_intensity = 0.8
+glow_strength = 1.0
+glow_bloom = 0.5
+glow_blend_mode = 0
+
+[node name="Game" type="Node2D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("env_1")
+
+[node name="Background" type="ColorRect" parent="."]
+color = Color(0.02, 0.05, 0.08, 1)
+offset_right = 1200.0
+offset_bottom = 2000.0
+
+[node name="TreeSpawner" type="Node2D" parent="."]
+script = ExtResource("4_trees")
+scroll_speed = 300.0
+
+[node name="GameManager" type="Node" parent="."]
+script = ExtResource("4_gamemanager")
+
+[node name="Player" parent="." instance=ExtResource("1_player")]
+position = Vector2(300, 800)
+
+[node name="Spawner" type="Node2D" parent="."]
+script = ExtResource("2_spawner")
+obstacle_scene = ExtResource("3_gate")
+spawn_interval = 2.0
+
+[node name="Rain" type="CPUParticles2D" parent="."]
+position = Vector2(300, -50)
+amount = 100
+lifetime = 2.0
+emission_shape = 3
+emission_rect_extents = Vector2(300, 1)
+gravity = Vector2(0, 800)
+color = Color(0.5, 0.6, 1, 0.4)
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="ScoreLabel" type="Label" parent="CanvasLayer"]
+offset_left = 20.0
+offset_top = 50.0
+offset_right = 200.0
+offset_bottom = 73.0
+text = "Harmony: 0"
+script = ExtResource("5_ui")
