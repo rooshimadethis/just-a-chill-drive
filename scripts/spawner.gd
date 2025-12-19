@@ -1,22 +1,22 @@
 extends Node3D
 
 @export var obstacle_scene: PackedScene
-@export var spawn_interval: float = 4.0  # 60 BPM: 4 beats = 4 seconds (synced with chord changes)
 @export var speed: float = 17.0  # Reduced 10% (was 18.8)
 
-var spawn_timer: float = 0.0
 var spawn_count: int = 0
 var last_lane_index: int = -1  # Track last lane to avoid consecutive spawns
+var game_manager: Node
 
 func _ready():
-	pass
+	# Connect to GameManager's metronome
+	game_manager = get_node("/root/Game/GameManager")
+	if game_manager:
+		game_manager.bar_occurred.connect(_on_bar_occurred)
+		print("Gate Spawner: Connected to metronome (spawning every 4 beats)")
 
-func _process(delta):
-	spawn_timer += delta
-	if spawn_timer >= spawn_interval:
-		# Reset timer with slight organic variance (+/- 0.2s) for natural feel
-		spawn_timer = randf_range(-0.2, 0.2) 
-		spawn_gate()
+func _on_bar_occurred(bar_number: int):
+	# Spawn a gate on every bar (every 4 beats = 4 seconds at 60 BPM)
+	spawn_gate()
 
 func spawn_gate():
 	if not obstacle_scene:

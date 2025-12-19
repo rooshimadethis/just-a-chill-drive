@@ -1,6 +1,8 @@
 extends Node
 
 signal score_updated(new_score)
+signal beat_occurred(beat_number: int)  # Emitted on every beat
+signal bar_occurred(bar_number: int)    # Emitted every 4 beats
 
 var harmony_score: int = 0
 var camera_x: float = 0.0  # Track camera's current X position for smooth lerp
@@ -10,6 +12,19 @@ var audio_system: Node
 var last_camera_update_x: float = 0.0
 var camera_update_threshold: float = 0.01  # Only update if change > 0.01 units
 
+# ===== CENTRALIZED 60 BPM METRONOME =====
+# This is the single source of truth for all timing in the game
+const BPM: float = 60.0
+const BEAT_DURATION: float = 1.0  # 60 BPM = 1 second per beat
+const BAR_DURATION: float = 4.0   # 4 beats per bar = 4 seconds
+
+var metronome_time: float = 0.0        # Total elapsed time in seconds
+var current_beat: int = 0              # Current beat number (0, 1, 2, 3, ...)
+var current_bar: int = 0               # Current bar number (0, 1, 2, ...)
+var beat_phase: float = 0.0            # Current position within beat (0.0 to 1.0)
+var bar_phase: float = 0.0             # Current position within bar (0.0 to 1.0)
+var last_beat: int = -1                # Track last beat to detect changes
+
 func _ready():
 	# Allow time for the scene to fully load
 	await get_tree().process_frame
@@ -17,6 +32,30 @@ func _ready():
 	setup_environment()
 
 func _process(delta):
+	# ===== UPDATE METRONOME =====
+	# This runs first so all other systems can use updated timing
+	metronome_time += delta
+	
+	# Calculate current beat and bar
+	current_beat = int(metronome_time / BEAT_DURATION)
+	current_bar = int(metronome_time / BAR_DURATION)
+	
+	# Calculate phase within current beat (0.0 to 1.0)
+	beat_phase = fmod(metronome_time, BEAT_DURATION) / BEAT_DURATION
+	
+	# Calculate phase within current bar (0.0 to 1.0)
+	bar_phase = fmod(metronome_time, BAR_DURATION) / BAR_DURATION
+	
+	# Emit signals when beat changes
+	if current_beat != last_beat:
+		last_beat = current_beat
+		beat_occurred.emit(current_beat)
+		
+		# Emit bar signal every 4 beats
+		if current_beat % 4 == 0:
+			bar_occurred.emit(current_bar)
+	
+	# ===== CAMERA FOLLOWING LOGIC =====
 	# Camera Following Logic - follows both road curve and player position
 	
 	# Sync Time (calculate once per frame)
@@ -48,6 +87,45 @@ func _process(delta):
 		if cam:
 			cam.position.x = camera_x
 
+
+# ===== METRONOME HELPER FUNCTIONS =====
+# These allow other systems to query the metronome state
+
+func get_beat_phase() -> float:
+	"""Returns current position within beat (0.0 to 1.0)"""
+	return beat_phase
+
+func get_bar_phase() -> float:
+	"""Returns current position within bar (0.0 to 1.0)"""
+	return bar_phase
+
+func get_current_beat() -> int:
+	"""Returns the current beat number"""
+	return current_beat
+
+func get_current_bar() -> int:
+	"""Returns the current bar number"""
+	return current_bar
+
+func is_on_beat(tolerance: float = 0.1) -> bool:
+	"""Returns true if we're close to a beat (within tolerance)"""
+	return beat_phase < tolerance or beat_phase > (1.0 - tolerance)
+
+func is_on_bar(tolerance: float = 0.1) -> bool:
+	"""Returns true if we're close to a bar (within tolerance)"""
+	return bar_phase < tolerance or bar_phase > (1.0 - tolerance)
+
+func get_time_to_next_beat() -> float:
+	"""Returns time in seconds until next beat"""
+	return (1.0 - beat_phase) * BEAT_DURATION
+
+func get_time_to_next_bar() -> float:
+	"""Returns time in seconds until next bar"""
+	return (1.0 - bar_phase) * BAR_DURATION
+
+func get_metronome_time() -> float:
+	"""Returns total elapsed metronome time"""
+	return metronome_time
 
 
 

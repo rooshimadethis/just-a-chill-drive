@@ -14,11 +14,12 @@ var num_chord_voices = 3  # Allow 3 simultaneous chords for rich layering
 # Kick Drum Player (60 BPM heartbeat)
 var kick_player: AudioStreamPlayer
 var kick_playback: AudioStreamGeneratorPlayback
-var kick_timer: float = 0.0
-var kick_interval: float = 1.0  # 60 BPM = 1 beat per second
 var is_generating_kick = false
 var kick_frame_index = 0
 var kick_total_frames = 0
+
+# Reference to GameManager for metronome
+var game_manager: Node
 
 # Restorative chord progressions (60 BPM, slow harmonic rhythm)
 # Using open voicings (spread across 2+ octaves) and maj7/sus chords
@@ -44,9 +45,21 @@ var current_chord_index = 0
 var chord_states = []
 
 func _ready():
+	# Get reference to GameManager
+	game_manager = get_node("/root/Game/GameManager")
+	
 	setup_engine_noise()
 	setup_chord_players()
 	setup_kick_drum()
+	
+	# Connect to metronome for kick drum timing
+	if game_manager:
+		game_manager.beat_occurred.connect(_on_beat_occurred)
+		print("AudioSystem: Connected to metronome for kick drum")
+
+func _on_beat_occurred(beat_number: int):
+	# Trigger kick on every beat (60 BPM = 1 beat per second)
+	trigger_kick()
 	
 func setup_engine_noise():
 	# Create continuous brown noise player
@@ -113,12 +126,6 @@ func _process(delta):
 	for i in range(num_chord_voices):
 		if chord_states[i]["is_generating"]:
 			generate_chord_frames(i)
-	
-	# Kick drum timing (60 BPM = 1 beat per second)
-	kick_timer += delta
-	if kick_timer >= kick_interval:
-		kick_timer -= kick_interval
-		trigger_kick()
 	
 	# Generate kick drum frames if active
 	if is_generating_kick:

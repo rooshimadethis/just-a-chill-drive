@@ -60,38 +60,48 @@ func _process(delta):
 	if not enable_mandala:
 		return
 	
+	# Check if debug mode is enabled
+	var debug_enabled = _is_debug_enabled()
+	
 	var opacity_changed = false
 	
-	# Handle activation timing
-	if not is_active and not is_fading_in:
-		time_until_next_activation -= delta
-		if time_until_next_activation <= 0.0:
-			_start_effect()
-	
-	# Handle fade in
-	if is_fading_in:
-		current_opacity += (delta / fade_duration)
-		opacity_changed = true
-		if current_opacity >= 1.0:
-			current_opacity = 1.0
-			is_fading_in = false
-			is_active = true
-			effect_timer = effect_duration
-	
-	# Handle active effect
-	if is_active:
-		effect_timer -= delta
-		if effect_timer <= 0.0:
-			_end_effect()
-	
-	# Handle fade out
-	if is_fading_out:
-		current_opacity -= (delta / fade_duration)
-		opacity_changed = true
-		if current_opacity <= 0.0:
-			current_opacity = 0.0
-			is_fading_out = false
-			_schedule_next_activation()
+	if debug_enabled:
+		# Force 50% opacity when debug is enabled
+		if current_opacity != 0.5:
+			current_opacity = 0.5
+			opacity_changed = true
+	else:
+		# Normal behavior when debug is disabled
+		# Handle activation timing
+		if not is_active and not is_fading_in:
+			time_until_next_activation -= delta
+			if time_until_next_activation <= 0.0:
+				_start_effect()
+		
+		# Handle fade in
+		if is_fading_in:
+			current_opacity += (delta / fade_duration)
+			opacity_changed = true
+			if current_opacity >= 1.0:
+				current_opacity = 1.0
+				is_fading_in = false
+				is_active = true
+				effect_timer = effect_duration
+		
+		# Handle active effect
+		if is_active:
+			effect_timer -= delta
+			if effect_timer <= 0.0:
+				_end_effect()
+		
+		# Handle fade out
+		if is_fading_out:
+			current_opacity -= (delta / fade_duration)
+			opacity_changed = true
+			if current_opacity <= 0.0:
+				current_opacity = 0.0
+				is_fading_out = false
+				_schedule_next_activation()
 	
 	# Only update shader if opacity changed
 	if opacity_changed and mandala_material:
@@ -122,3 +132,11 @@ func _update_shader_params():
 		mandala_material.set_shader_parameter("center_offset", center_offset)
 		mandala_material.set_shader_parameter("opacity", 0.0)
 
+func _is_debug_enabled() -> bool:
+	# Check if MandalaDebug node exists and has debug enabled
+	var canvas_layer = get_parent()
+	if canvas_layer:
+		var debug_node = canvas_layer.get_node_or_null("MandalaDebug")
+		if debug_node and "enable_debug" in debug_node:
+			return debug_node.enable_debug
+	return false

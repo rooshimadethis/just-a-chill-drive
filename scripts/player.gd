@@ -183,14 +183,18 @@ func _physics_process(delta):
 	# Clamp is implicit by mapping logic, but good safety
 	position.x = clamp(position.x, -max_x, max_x)
 	
-	# Vertical float synchronized to 60 BPM (4-beat cycle = 4 seconds)
-	# At 60 BPM: 1 beat = 1 second, so 4 beats = 4 seconds per complete float cycle
-	# This creates a breathing-like rhythm for attention restoration
-	var bpm = 60.0
-	var beats_per_cycle = 4.0 # Complete up-down motion over 4 beats
-	var seconds_per_cycle = beats_per_cycle * (60.0 / bpm) # = 4 seconds
-	var float_frequency = TAU / seconds_per_cycle # Radians per second
-	var time_in_seconds = Time.get_ticks_msec() / 1000.0
-	
-	position.y = 0.5 + sin(time_in_seconds * float_frequency) * sway_amount
+	# Vertical float synchronized to 60 BPM metronome (4-beat cycle = 4 seconds)
+	# Use the metronome's bar_phase for perfect synchronization
+	if game_manager:
+		var bar_phase = game_manager.get_bar_phase()
+		# Convert phase (0.0 to 1.0) to full sine wave cycle (0 to TAU)
+		position.y = 0.5 + sin(bar_phase * TAU) * sway_amount
+	else:
+		# Fallback to time-based if GameManager not available
+		var bpm = 60.0
+		var beats_per_cycle = 4.0
+		var seconds_per_cycle = beats_per_cycle * (60.0 / bpm)
+		var float_frequency = TAU / seconds_per_cycle
+		var time_in_seconds = Time.get_ticks_msec() / 1000.0
+		position.y = 0.5 + sin(time_in_seconds * float_frequency) * sway_amount
 

@@ -11,6 +11,7 @@
 [ext_resource type="Shader" path="res://shaders/kaleidoscope_sky.gdshader" id="9_kaleidoscope"]
 [ext_resource type="Shader" path="res://shaders/mandala_effect.gdshader" id="10_mandala"]
 [ext_resource type="Script" path="res://scripts/mandala_overlay.gd" id="11_mandala_script"]
+[ext_resource type="Script" path="res://scripts/mandala_debug.gd" id="12_mandala_debug"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("9_kaleidoscope")
@@ -126,6 +127,21 @@ zoom = 1.0
 sky_threshold = 0.4
 blend_softness = 0.1
 center_offset = Vector2(0.5, 0.25)
+
+[node name="MandalaDebug" type="Control" parent="CanvasLayer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("12_mandala_debug")
+mirror_segments = 8
+center_offset = Vector2(0.5, 0.25)
+sky_threshold = 0.4
+blend_softness = 0.1
+
 
 
 

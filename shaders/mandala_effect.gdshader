@@ -41,6 +41,11 @@ void fragment() {
         
         // Create mirror segments
         float segment_angle = 6.28318530718 / float(mirror_segments); // 2*PI / segments
+        
+        // Rotate the entire pattern one segment counter-clockwise
+        // Counter-clockwise = add positive angle (in standard math coords)
+        angle += segment_angle;
+        
         angle = mod(angle, segment_angle);
         
         // Mirror every other segment for perfect symmetry

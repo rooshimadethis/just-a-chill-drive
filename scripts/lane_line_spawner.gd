@@ -1,12 +1,10 @@
 extends Node3D
 
-@export var spawn_interval: float = 1.0  # 60 BPM: 1 beat = 1 second (visual rhythm)
 @export var scroll_speed: float = 17.0  # Reduced 10% (was 18.8)
 @export var lane_width: float = 2.0  # Distance from center
 @export var line_length: float = 3.0  # Length of each dash
 @export var line_width: float = 0.15  # Width of the line
 
-var spawn_timer: float = 0.0
 var lane_lines = []
 var lane_material: ShaderMaterial
 var game_manager: Node
@@ -19,6 +17,15 @@ func _ready():
 	game_manager = get_node("/root/Game/GameManager")
 	_initialize_material()
 	_initialize_pool()
+	
+	# Connect to GameManager's metronome
+	if game_manager:
+		game_manager.beat_occurred.connect(_on_beat_occurred)
+		print("Lane Line Spawner: Connected to metronome (spawning every beat)")
+
+func _on_beat_occurred(beat_number: int):
+	# Spawn lane lines on every beat (every 1 second at 60 BPM)
+	spawn_lane_line_set()
 
 func _initialize_pool():
 	# Pre-create lane lines to avoid runtime allocation
@@ -84,12 +91,6 @@ func _process(delta):
 		if line.position.z > 10:
 			_return_to_pool(line)
 			lane_lines.remove_at(i)
-	
-	# Spawn new lane lines
-	spawn_timer += delta
-	if spawn_timer >= spawn_interval:
-		spawn_timer = 0.0
-		spawn_lane_line_set()
 
 func spawn_lane_line_set():
 	# Spawn Left Lane Line
