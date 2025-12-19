@@ -6,7 +6,7 @@ extends ColorRect
 @export var zoom: float = 1.0
 @export var sky_threshold: float = 0.4  # Y position below which effect is disabled
 @export var blend_softness: float = 0.1  # Softness of the transition
-@export var center_offset: Vector2 = Vector2(0.5, 0.25)  # Center point of kaleidoscope
+@export var center_offset: Vector2 = Vector2(0.5, 0.325)  # Center point of kaleidoscope
 
 # Random activation settings
 @export var min_wait_time: float = 90.0  # Minimum time before next activation (1.5 minutes)

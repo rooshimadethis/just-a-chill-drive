@@ -1,8 +1,8 @@
 extends Control
 
-@export var enable_debug: bool = true
+@export var enable_debug: bool = false
 @export var mirror_segments: int = 8
-@export var center_offset: Vector2 = Vector2(0.5, 0.25)
+@export var center_offset: Vector2 = Vector2(0.5, 0.325)
 @export var sky_threshold: float = 0.4
 @export var blend_softness: float = 0.1
 @export var line_color: Color = Color(1.0, 0.5, 0.0, 0.8)  # Orange with transparency
