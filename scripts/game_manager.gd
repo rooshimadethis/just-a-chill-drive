@@ -88,13 +88,19 @@ func _process(delta):
 	
 	# Smoothly lerp camera to target position (same damping as player: 10.0)
 	var previous_camera_x = camera_x
-	camera_x = lerp(camera_x, target_camera_x, 10.0 * delta)
+	# Clamp lerp weight ensures we never overshoot even if delta is huge (lag spike)
+	camera_x = lerp(camera_x, target_camera_x, clamp(10.0 * delta, 0.0, 1.0))
 	
 	# Calculate Tilt (Roll)
-	# Tilt based on the delta of movement (velocity)
-	# Flipping sign to positive 2.0 as requested
-	var movement_delta = camera_x - previous_camera_x
-	var target_tilt = movement_delta * 1.0 
+	# Use VELOCITY (dist / time) instead of raw displacement to prevent huge snaps during hiccups
+	var valid_delta = max(delta, 0.001)
+	var velocity = (camera_x - previous_camera_x) / valid_delta
+	
+	# Target multiplier: 0.016 matches the previous "1.0 per frame at 60fps" feel
+	var target_tilt = velocity * 0.016
+	
+	# Clamp tilt to prevent breaking neck during teleport/reset
+	target_tilt = clamp(target_tilt, -0.3, 0.3) 
 	
 	# Smoothly lerp tilt
 	camera_tilt = lerp(camera_tilt, target_tilt, 5.0 * delta)
