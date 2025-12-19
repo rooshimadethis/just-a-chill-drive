@@ -2,10 +2,11 @@ extends Node3D
 
 @export var obstacle_scene: PackedScene
 @export var spawn_interval: float = 2.0
-@export var speed: float = 22.0  # 10% faster
+@export var speed: float = 18.8  # Reduced 5% (was 19.8)
 
 var spawn_timer: float = 0.0
 var spawn_count: int = 0
+var last_lane_index: int = -1  # Track last lane to avoid consecutive spawns
 
 func _ready():
 	pass
@@ -25,10 +26,23 @@ func spawn_gate():
 	var gate = obstacle_scene.instantiate()
 	add_child(gate)
 	
-	# Random X, approximate road width -4 to 4
-	var random_x = randf_range(-3.0, 3.0)
-	# Spawn far away
-	gate.position = Vector3(random_x, 0, -120)
+	# Choose one of three lanes: left (-4.0), center (0.0), or right (4.0)
+	# Matching visual lane width of 4.0 (lines at +/- 2.0)
+	var lanes = [-4.0, 0.0, 4.0]
+	
+	# Pick a different lane than last time
+	var available_indices = []
+	for i in range(lanes.size()):
+		if i != last_lane_index:
+			available_indices.append(i)
+	
+	# Select randomly from available lanes
+	var chosen_index = available_indices[randi() % available_indices.size()]
+	last_lane_index = chosen_index
+	var lane_x = lanes[chosen_index]
+	
+	# Spawn far away in the chosen lane
+	gate.position = Vector3(lane_x, 0, -120)
 	
 	# Configure gate properties
 	if gate.has_method("set_speed"):
@@ -38,4 +52,5 @@ func spawn_gate():
 	if spawn_count % 5 == 0:
 		if gate.has_method("set_special_color"):
 			gate.set_special_color(Color(1.0, 0.5, 0.0)) # Orange
+
 

@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/tree_spawner.gd" id="4_trees"]
 [ext_resource type="Script" path="res://scripts/game_manager.gd" id="4_gamemanager"]
 [ext_resource type="Script" path="res://scripts/lane_line_spawner.gd" id="7_lanelines"]
+[ext_resource type="Script" path="res://scripts/sky_spawner.gd" id="8_sky"]
 [ext_resource type="Script" path="res://scripts/ui_overlay.gd" id="5_ui"]
 
 [sub_resource type="Environment" id="env_1"]
@@ -25,6 +26,14 @@ size = Vector2(10, 300)
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_road"]
 albedo_color = Color(0.1, 0.1, 0.15, 1)
 
+[sub_resource type="PlaneMesh" id="PlaneMesh_ground"]
+size = Vector2(20, 300)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ground"]
+albedo_color = Color(0.08, 0.15, 0.1, 1)
+roughness = 0.9
+metallic = 0.0
+
 [node name="Game" type="Node3D"]
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
@@ -39,6 +48,16 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -100)
 mesh = SubResource("PlaneMesh_road")
 surface_material_override/0 = SubResource("StandardMaterial3D_road")
 
+[node name="GroundLeft" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, -0.05, -100)
+mesh = SubResource("PlaneMesh_ground")
+surface_material_override/0 = SubResource("StandardMaterial3D_ground")
+
+[node name="GroundRight" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15, -0.05, -100)
+mesh = SubResource("PlaneMesh_ground")
+surface_material_override/0 = SubResource("StandardMaterial3D_ground")
+
 [node name="Player" parent="." instance=ExtResource("1_player")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 
@@ -50,6 +69,9 @@ script = ExtResource("4_trees")
 
 [node name="LaneLineSpawner" type="Node3D" parent="."]
 script = ExtResource("7_lanelines")
+
+[node name="SkySpawner" type="Node3D" parent="."]
+script = ExtResource("8_sky")
 
 [node name="Spawner" type="Node3D" parent="."]
 script = ExtResource("2_spawner")

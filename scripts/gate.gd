@@ -1,42 +1,112 @@
 extends Area3D
 
-@export var speed: float = 20.0
+@export var speed: float = 18.0
 var collected: bool = false
 var game_manager: Node
 
 func _ready():
-	# Find GameManager in the scene tree (assuming it's at /root/Game/GameManager)
+	# Find GameManager in the scene tree
 	game_manager = get_node("/root/Game/GameManager")
 	
-	# Duplicate materials so each gate has its own instance
+	# 1. Widen the Gap 
+	# User Request: "Make gates width of lane" (Gap 4.0)
+	var half_width = 2.0
+	
+	# Create shared CylinderMesh
+	var cyl_mesh = CylinderMesh.new()
+	cyl_mesh.height = 4.0 # Taller to account for scale/embed
+	cyl_mesh.top_radius = 0.3
+	cyl_mesh.bottom_radius = 0.3
+	cyl_mesh.radial_segments = 16
+	
 	if has_node("LeftPillar"):
-		var left_mat = $LeftPillar.get_surface_override_material(0)
-		if left_mat:
-			$LeftPillar.set_surface_override_material(0, left_mat.duplicate())
-	
+		$LeftPillar.mesh = cyl_mesh
+		$LeftPillar.position.x = -half_width
+		$LeftPillar.scale = Vector3(0.8, 0.8, 0.8) # 20% smaller pillars
 	if has_node("RightPillar"):
-		var right_mat = $RightPillar.get_surface_override_material(0)
-		if right_mat:
-			$RightPillar.set_surface_override_material(0, right_mat.duplicate())
+		$RightPillar.mesh = cyl_mesh
+		$RightPillar.position.x = half_width
+		$RightPillar.scale = Vector3(0.8, 0.8, 0.8)
 	
-	# Initialize transparency immediately to avoid 1-frame pop-in
-	_update_transparency()
+	# Adjust Trigger Size to match new width
+	if has_node("CollisionShape3D"):
+		# Assuming box shape, need to resize.
+		# But since shape is shared resource usually, changing it affects all instances if not made unique.
+		# However, in _ready we can make it unique or just assume it handles it.
+		# Let's check if we can resize the shape.
+		var shape = $CollisionShape3D.shape
+		if shape is BoxShape3D:
+			# Make unique to avoid affecting other gates if it was shared? 
+			# In Godot resources are shared by default but duplicates usually copy? 
+			# Safer to duplicate if we modify.
+			$CollisionShape3D.shape = shape.duplicate()
+			$CollisionShape3D.shape.size.x = half_width * 2.0
+	
+	# 2. Add Top Bar (Make it a Gate) --> REMOVED
+	# var top_bar = MeshInstance3D.new() ...
+	
+	# Assign material (Ghostly)
+	# Use shader if available
+	var shader = null
+	if game_manager and game_manager.has_method("get_winding_shader"):
+		shader = game_manager.get_winding_shader()
+	
+	var create_gate_mat = func(color: Color):
+		if shader:
+			var m = ShaderMaterial.new()
+			m.shader = shader
+			m.set_shader_parameter("albedo", color)
+			m.set_shader_parameter("emission", color)
+			m.set_shader_parameter("emission_energy", 2.0)
+			return m
+		else:
+			var m = StandardMaterial3D.new()
+			m.albedo_color = color
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.emission_enabled = true
+			m.emission = color
+			m.emission_energy_multiplier = 2.0
+			return m
+	
+	var default_color = Color(0.2, 0.8, 1.0, 0.0) # Start invisible
+	
+	# Apply to all parts
+	if has_node("LeftPillar"):
+		$LeftPillar.set_surface_override_material(0, create_gate_mat.call(default_color))
+	if has_node("RightPillar"):
+		$RightPillar.set_surface_override_material(0, create_gate_mat.call(default_color))
+		$RightPillar.set_surface_override_material(0, create_gate_mat.call(default_color))
 
 func set_speed(new_speed):
 	speed = new_speed
 
 func set_special_color(color: Color):
 	# Create a new material for the special color
-	var mat = StandardMaterial3D.new()
-	mat.albedo_color = Color(color.r, color.g, color.b, 0.0)  # Start invisible
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.emission_enabled = true
-	mat.emission = color
-	mat.emission_energy_multiplier = 3.0
+	var shader = null
+	if game_manager and game_manager.has_method("get_winding_shader"):
+		shader = game_manager.get_winding_shader()
+		
+	var mat
+	if shader:
+		mat = ShaderMaterial.new()
+		mat.shader = shader
+		mat.set_shader_parameter("albedo", Color(color.r, color.g, color.b, 0.0))
+		mat.set_shader_parameter("emission", color)
+		mat.set_shader_parameter("emission_energy", 3.0)
+	else:
+		mat = StandardMaterial3D.new()
+		mat.albedo_color = Color(color.r, color.g, color.b, 0.0)  # Start invisible
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.emission_enabled = true
+		mat.emission = color
+		mat.emission_energy_multiplier = 3.0
 	
 	# Apply to pillars
-	$LeftPillar.set_surface_override_material(0, mat)
-	$RightPillar.set_surface_override_material(0, mat)
+	if has_node("LeftPillar"):
+		$LeftPillar.set_surface_override_material(0, mat)
+	if has_node("RightPillar"):
+		$RightPillar.set_surface_override_material(0, mat)
+		$RightPillar.set_surface_override_material(0, mat)
 
 func _process(delta):
 	position.z += speed * delta
@@ -61,16 +131,23 @@ func _update_transparency():
 
 func _set_transparency(alpha: float):
 	# Apply transparency to children meshes via material
-	if has_node("LeftPillar"):
-		var pillar = $LeftPillar
-		var mat = pillar.get_surface_override_material(0)
-		if mat:
-			mat.albedo_color.a = 1.0 - alpha  # alpha 1.0 = invisible, so we invert
-	if has_node("RightPillar"):
-		var pillar = $RightPillar
-		var mat = pillar.get_surface_override_material(0)
-		if mat:
-			mat.albedo_color.a = 1.0 - alpha
+	var targets = ["LeftPillar", "RightPillar"]
+	for target_name in targets:
+		if has_node(target_name):
+			var node = get_node(target_name)
+			var mat = node.get_surface_override_material(0)
+			if mat:
+				# Target alpha is 0.25 (Very transparent Ghostly) when fully visible
+				var target_opacity = (1.0 - alpha) * 0.25
+				
+				if mat is ShaderMaterial:
+					var col = mat.get_shader_parameter("albedo")
+					if col:
+						col.a = target_opacity
+						mat.set_shader_parameter("albedo", col)
+				elif mat is StandardMaterial3D:
+					mat.albedo_color.a = target_opacity
+
 
 
 

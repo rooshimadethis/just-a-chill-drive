@@ -1,13 +1,24 @@
 extends Node3D
 
 @export var spawn_interval: float = 0.8
-@export var scroll_speed: float = 22.0  # 10% faster
+@export var scroll_speed: float = 18.8  # Reduced 5% (was 19.8)
 
 var spawn_timer: float = 0.0
 var trees = []
+var tree_templates = []
+var game_manager: Node
 
 func _ready():
-	pass
+	game_manager = get_node("/root/Game/GameManager")
+	
+	# Pre-calculate tree templates for performance
+	_generate_tree_templates()
+
+func _generate_tree_templates():
+	print("Generating 6 tree templates...")
+	for i in range(6):
+		var tree = _create_tree_mesh()
+		tree_templates.append(tree)
 
 func _process(delta):
 	# Move existing trees (iterate backwards to safely remove)
@@ -25,7 +36,14 @@ func _process(delta):
 			if child is MeshInstance3D:
 				var mat = child.get_surface_override_material(0)
 				if mat:
-					mat.albedo_color.a = t  # t goes from 0.0 (invisible) to 1.0 (opaque)
+					if mat is ShaderMaterial:
+						var col = mat.get_shader_parameter("albedo")
+						# Ensure color is valid before modifying
+						if col == null: col = Color(0.2, 0.5, 0.3)
+						col.a = t
+						mat.set_shader_parameter("albedo", col)
+					elif mat is StandardMaterial3D:
+						mat.albedo_color.a = t
 		
 		# Delete only when well behind camera
 		if tree.position.z > 10:
@@ -39,17 +57,32 @@ func _process(delta):
 		spawn_forest_row()
 
 func spawn_forest_row():
+	if tree_templates.size() == 0:
+		return
+
 	# Spawn Left Tree
-	var tree_left = _create_tree_mesh()
+	var tree_left = _instantiate_tree(tree_templates.pick_random())
 	tree_left.position = Vector3(-8 + randf_range(-2, 2), 0, -120)
 	add_child(tree_left)
 	trees.append(tree_left)
 	
 	# Spawn Right Tree
-	var tree_right = _create_tree_mesh()
+	var tree_right = _instantiate_tree(tree_templates.pick_random())
 	tree_right.position = Vector3(8 + randf_range(-2, 2), 0, -120)
 	add_child(tree_right)
 	trees.append(tree_right)
+
+func _instantiate_tree(template: Node3D) -> Node3D:
+	var new_tree = template.duplicate()
+	
+	# Make materials unique for this instance so we can fade it independently
+	for child in new_tree.get_children():
+		if child is MeshInstance3D:
+			var mat = child.get_surface_override_material(0)
+			if mat:
+				child.set_surface_override_material(0, mat.duplicate())
+	
+	return new_tree
 
 func _create_tree_mesh() -> Node3D:
 	# Create a container for the fractal tree
@@ -64,12 +97,32 @@ func _create_tree_mesh() -> Node3D:
 	l_sys.iterations = 3  # Keep it simple for performance
 	var sentence = l_sys.generate_sentence()
 	
+	# Creates basic material logic (Shader or Standard)
+	var mat
+	var shader = null
+	if game_manager and game_manager.has_method("get_winding_shader"):
+		shader = game_manager.get_winding_shader()
+	
+	if shader:
+		mat = ShaderMaterial.new()
+		mat.shader = shader
+		mat.set_shader_parameter("albedo", Color(0.2, 0.5, 0.3, 0.0))
+		mat.set_shader_parameter("emission", Color(0.3, 0.6, 0.4))
+		mat.set_shader_parameter("emission_energy", 0.5)
+	else:
+		mat = StandardMaterial3D.new()
+		mat.albedo_color = Color(0.2, 0.5, 0.3, 0.0)  # Soft green, start invisible
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.emission_enabled = true
+		mat.emission = Color(0.3, 0.6, 0.4)  # Subtle bioluminescent glow
+		mat.emission_energy_multiplier = 0.5
+	
 	# Draw the tree using turtle graphics in 3D
-	_draw_3d_tree(tree_container, sentence)
+	_draw_3d_tree(tree_container, sentence, mat)
 	
 	return tree_container
 
-func _draw_3d_tree(container: Node3D, sentence: String):
+func _draw_3d_tree(container: Node3D, sentence: String, material: Material):
 	# Turtle state
 	var transform_stack = []
 	var current_pos = Vector3.ZERO
@@ -78,20 +131,12 @@ func _draw_3d_tree(container: Node3D, sentence: String):
 	var branch_angle = 25.0
 	var branch_thickness = 0.15
 	
-	# Create material with transparency for fade-in effect
-	var mat = StandardMaterial3D.new()
-	mat.albedo_color = Color(0.2, 0.5, 0.3, 0.0)  # Soft green, start invisible
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.emission_enabled = true
-	mat.emission = Color(0.3, 0.6, 0.4)  # Subtle bioluminescent glow
-	mat.emission_energy_multiplier = 0.5
-	
 	for char in sentence:
 		match char:
 			"F":
 				# Draw a branch segment
 				var next_pos = current_pos + current_dir * step_length
-				var branch = _create_branch_segment(current_pos, next_pos, branch_thickness, mat)
+				var branch = _create_branch_segment(current_pos, next_pos, branch_thickness, material)
 				container.add_child(branch)
 				current_pos = next_pos
 				# Reduce thickness and length for natural taper
@@ -117,7 +162,7 @@ func _draw_3d_tree(container: Node3D, sentence: String):
 					step_length = state[2]
 					branch_thickness = state[3]
 
-func _create_branch_segment(start: Vector3, end: Vector3, thickness: float, material: StandardMaterial3D) -> MeshInstance3D:
+func _create_branch_segment(start: Vector3, end: Vector3, thickness: float, material: Material) -> MeshInstance3D:
 	# Create a cylinder for the branch
 	var mesh_inst = MeshInstance3D.new()
 	var cylinder = CylinderMesh.new()
@@ -129,7 +174,9 @@ func _create_branch_segment(start: Vector3, end: Vector3, thickness: float, mate
 	cylinder.bottom_radius = thickness * 1.2  # Slight taper
 	
 	mesh_inst.mesh = cylinder
-	mesh_inst.set_surface_override_material(0, material.duplicate())  # Duplicate for independent alpha
+	# Reuse the same material resource for the template to save memory/draw calls if batched
+	# We will duplicate it when instantiating the tree row
+	mesh_inst.set_surface_override_material(0, material)
 	
 	# Position at midpoint
 	var midpoint = (start + end) / 2.0
