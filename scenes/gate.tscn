@@ -9,7 +9,8 @@ size = Vector3(0.5, 3, 0.5)
 size = Vector3(3, 2, 0.5)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_glow"]
-albedo_color = Color(0.2, 0.8, 1, 1)
+albedo_color = Color(0.2, 0.8, 1, 0)
+transparency = 1
 emission_enabled = true
 emission = Color(0.2, 0.8, 1, 1)
 emission_energy_multiplier = 2.0

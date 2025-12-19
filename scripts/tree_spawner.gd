@@ -16,8 +16,14 @@ func _process(delta):
 		tree.position.z += scroll_speed * delta
 		
 		# Fade In Logic (Z: -120 -> -90)
-		var fade_alpha = smoothstep(-90, -120, tree.position.z)
-		tree.transparency = fade_alpha
+		var start_z = -120.0
+		var end_z = -90.0
+		var t = clamp((tree.position.z - start_z) / (end_z - start_z), 0.0, 1.0)
+		
+		# Set alpha via material
+		var mat = tree.get_surface_override_material(0)
+		if mat:
+			mat.albedo_color.a = t  # t goes from 0.0 (invisible) to 1.0 (opaque)
 		
 		# Delete only when well behind camera
 		if tree.position.z > 10:
@@ -48,7 +54,13 @@ func _create_tree_mesh() -> MeshInstance3D:
 	var mesh = BoxMesh.new()
 	mesh.size = Vector3(1, 5, 1) # Tall box
 	mesh_inst.mesh = mesh
-	# No material for now, will be white/gray default
+	
+	# Create material with transparency
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(0.3, 0.6, 0.3, 0.0)  # Start invisible (alpha = 0.0)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mesh_inst.set_surface_override_material(0, mat)
+	
 	# Lift it up so it sits on ground (height/2)
 	mesh_inst.position.y = 2.5
 	return mesh_inst
