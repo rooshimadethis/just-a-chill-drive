@@ -23,8 +23,8 @@ var col_dusk_hor = Color(0.8, 0.3, 0.5)
 
 # Components
 var celestials_pivot: Node3D
-var sun_mesh: MeshInstance3D
-var moon_mesh: MeshInstance3D
+var sun_mesh: Node3D
+var moon_mesh: Node3D
 var main_light: DirectionalLight3D
 var world_environment: WorldEnvironment
 var sky_material: ProceduralSkyMaterial
@@ -37,25 +37,25 @@ func setup(env_node: WorldEnvironment):
 	_setup_sky()
 
 func _create_celestials():
-	# 1. Pivot center (Player is at 0, roughly)
+	# 1. Pivot center
 	celestials_pivot = Node3D.new()
 	celestials_pivot.name = "Celestials"
 	add_child(celestials_pivot)
+	celestials_pivot.position.z = -900.0 # Far away to reduce stretching and add scale
 	
 	# 2. Main Light
 	main_light = DirectionalLight3D.new()
 	main_light.shadow_enabled = true
 	main_light.shadow_opacity = 0.7
 	celestials_pivot.add_child(main_light)
-	# Align light with Sun vector (Sun is at +Y locally initially, light points down -Y)
 	main_light.rotation_degrees.x = -90 
 	
 	# 3. Sun Mesh (Visual)
-	sun_mesh = MeshInstance3D.new()
+	var sun_inst = MeshInstance3D.new()
 	var s_mesh = SphereMesh.new()
-	s_mesh.radius = 10.0
-	s_mesh.height = 20.0
-	sun_mesh.mesh = s_mesh
+	s_mesh.radius = 25.0
+	s_mesh.height = 50.0
+	sun_inst.mesh = s_mesh
 	
 	var s_mat = StandardMaterial3D.new()
 	s_mat.albedo_color = Color(1, 0.9, 0.6)
@@ -63,28 +63,47 @@ func _create_celestials():
 	s_mat.emission = Color(1, 0.8, 0.5)
 	s_mat.emission_energy_multiplier = 10.0
 	s_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	sun_mesh.set_surface_override_material(0, s_mat)
+	s_mat.disable_fog = true
+	sun_inst.set_surface_override_material(0, s_mat)
 	
+	sun_mesh = sun_inst
 	celestials_pivot.add_child(sun_mesh)
-	sun_mesh.position = Vector3(0, 200, 0) # High up
+	sun_mesh.position = Vector3(0, 600, 0) # High orbit
 	
-	# 4. Moon Mesh (Visual)
-	moon_mesh = MeshInstance3D.new()
-	var m_mesh = SphereMesh.new()
-	m_mesh.radius = 8.0
-	m_mesh.height = 16.0
-	moon_mesh.mesh = m_mesh
+	# 4. Moon Mesh (Visual - Crescent)
+	# Use CSG to subtract a sphere from another
+	var moon_combiner = CSGCombiner3D.new()
+	moon_combiner.name = "MoonCrescent"
 	
+	# Visible Body
+	var m_body = CSGSphere3D.new()
+	m_body.radius = 20.0
+	m_body.radial_segments = 24
+	m_body.rings = 12
+	# Material
 	var m_mat = StandardMaterial3D.new()
 	m_mat.albedo_color = Color(0.9, 0.9, 1.0)
 	m_mat.emission_enabled = true
 	m_mat.emission = Color(0.8, 0.8, 1.0)
 	m_mat.emission_energy_multiplier = 5.0
 	m_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	moon_mesh.set_surface_override_material(0, m_mat)
+	m_mat.disable_fog = true
+	m_body.material = m_mat
+	moon_combiner.add_child(m_body)
 	
+	# Shadow Cutter
+	var m_cut = CSGSphere3D.new()
+	m_cut.operation = CSGShape3D.OPERATION_SUBTRACTION
+	m_cut.radius = 22.0
+	m_cut.radial_segments = 24
+	m_cut.rings = 12
+	# Offset to create crescent
+	m_cut.position = Vector3(8, 5, 0) 
+	moon_combiner.add_child(m_cut)
+	
+	moon_mesh = moon_combiner
 	celestials_pivot.add_child(moon_mesh)
-	moon_mesh.position = Vector3(0, -200, 0) # Opposite to sun
+	moon_mesh.position = Vector3(0, -600, 0) # Opposite to sun, high orbit
 
 func _setup_sky():
 	if not world_environment: return

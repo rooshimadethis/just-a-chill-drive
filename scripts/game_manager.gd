@@ -70,10 +70,19 @@ varying float v_world_z;
 
 void vertex() {
    // Winding Road Effect
-   float z = (MODEL_MATRIX * vec4(VERTEX, 1.0)).z;
+   // 1. Get World Z for curve calculation
+   vec3 world_vertex = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+   float z = world_vertex.z;
    v_world_z = z;
+   
+   // 2. Calculate correct curve offset
    float offset = sin(z * 0.02 - road_time * 0.5) * 1.25; 
-   VERTEX.x += offset;
+   
+   // 3. Apply offset in WORLD SPACE (to x coordinate)
+   world_vertex.x += offset;
+   
+   // 4. Transform back to Local Space
+   VERTEX = (inverse(MODEL_MATRIX) * vec4(world_vertex, 1.0)).xyz;
 }
 
 void fragment() {
@@ -113,9 +122,12 @@ global uniform float road_time;
 
 void vertex() {
    // Winding Road Effect
-   float z = (MODEL_MATRIX * vec4(VERTEX, 1.0)).z;
+   vec3 world_vertex = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+   float z = world_vertex.z;
    float offset = sin(z * 0.02 - road_time * 0.5) * 1.25; 
-   VERTEX.x += offset;
+   
+   world_vertex.x += offset;
+   VERTEX = (inverse(MODEL_MATRIX) * vec4(world_vertex, 1.0)).xyz;
 }
 
 void fragment() {
@@ -148,9 +160,17 @@ global uniform float road_time;
 
 void vertex() {
    // Rigid Winding Road Effect
-   float z = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).z;
+   // Get World Origin of object for Z calculation
+   vec3 world_origin = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+   float z = world_origin.z;
    float offset = sin(z * 0.02 - road_time * 0.5) * 1.25; 
-   VERTEX.x += offset;
+   
+   // Apply offset to World Pos
+   vec3 world_vertex = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+   world_vertex.x += offset;
+   
+   // Transform back
+   VERTEX = (inverse(MODEL_MATRIX) * vec4(world_vertex, 1.0)).xyz;
 }
 
 void fragment() {
