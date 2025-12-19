@@ -26,7 +26,8 @@ func _on_area_entered(area):
 		
 		# Haptic Feedback
 		if OS.get_name() == "Android" or OS.get_name() == "iOS":
-			Input.vibrate_handheld(50)
+			# Increase duration slightly to ensure it's perceptible
+			Input.vibrate_handheld(75)
 		
 		# Visual Feedback: Fade out and scale up
 		var tween = get_tree().create_tween()
