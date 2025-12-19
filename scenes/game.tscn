@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/player.tscn" id="1_player"]
 [ext_resource type="Script" path="res://scripts/spawner.gd" id="2_spawner"]
@@ -8,10 +8,30 @@
 [ext_resource type="Script" path="res://scripts/lane_line_spawner.gd" id="7_lanelines"]
 [ext_resource type="Script" path="res://scripts/sky_spawner.gd" id="8_sky"]
 [ext_resource type="Script" path="res://scripts/ui_overlay.gd" id="5_ui"]
+[ext_resource type="Shader" path="res://shaders/kaleidoscope_sky.gdshader" id="9_kaleidoscope"]
+[ext_resource type="Shader" path="res://shaders/mandala_effect.gdshader" id="10_mandala"]
+[ext_resource type="Script" path="res://scripts/mandala_overlay.gd" id="11_mandala_script"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
+shader = ExtResource("9_kaleidoscope")
+shader_parameter/rotation_speed = 0.05
+shader_parameter/mirror_segments = 8
+shader_parameter/pattern_scale = 1.5
+shader_parameter/color_tint_1 = Vector3(0.3, 0.6, 0.9)
+shader_parameter/color_tint_2 = Vector3(0.6, 0.3, 0.8)
+shader_parameter/color_tint_3 = Vector3(0.4, 0.8, 0.7)
+shader_parameter/brightness = 0.8
+shader_parameter/fractal_detail = 3.0
+shader_parameter/kaleidoscope_blend = 0.4
+shader_parameter/horizon_color = Vector3(0.7, 0.5, 0.6)
+shader_parameter/zenith_color = Vector3(0.1, 0.2, 0.4)
+
+[sub_resource type="Sky" id="Sky_kaleidoscope"]
+sky_material = SubResource("ShaderMaterial_sky")
 
 [sub_resource type="Environment" id="env_1"]
-background_mode = 1
-background_color = Color(0.02, 0.05, 0.08, 1)
+background_mode = 2
+sky = SubResource("Sky_kaleidoscope")
 glow_enabled = true
 glow_intensity = 0.8
 glow_strength = 1.0
@@ -90,3 +110,22 @@ offset_right = 200.0
 offset_bottom = 73.0
 text = "Harmony: 0"
 script = ExtResource("5_ui")
+
+[node name="MandalaOverlay" type="ColorRect" parent="CanvasLayer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(1, 1, 1, 0)
+mouse_filter = 2
+script = ExtResource("11_mandala_script")
+mirror_segments = 8
+rotation_speed = 0.05
+zoom = 1.0
+sky_threshold = 0.5
+blend_softness = 0.1
+center_offset = Vector2(0.5, 0.25)
+
+
+

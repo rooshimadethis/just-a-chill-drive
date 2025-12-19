@@ -129,6 +129,14 @@ func _physics_process(delta):
 	# Clamp is implicit by mapping logic, but good safety
 	position.x = clamp(position.x, -max_x, max_x)
 	
-	# Add slight vertical sway for "floating" feel (Bioluminescent forest vibe)
-	position.y = 0.5 + sin(Time.get_ticks_msec() * 0.002) * sway_amount
+	# Vertical float synchronized to 60 BPM (4-beat cycle = 4 seconds)
+	# At 60 BPM: 1 beat = 1 second, so 4 beats = 4 seconds per complete float cycle
+	# This creates a breathing-like rhythm for attention restoration
+	var bpm = 60.0
+	var beats_per_cycle = 4.0 # Complete up-down motion over 4 beats
+	var seconds_per_cycle = beats_per_cycle * (60.0 / bpm) # = 4 seconds
+	var float_frequency = TAU / seconds_per_cycle # Radians per second
+	var time_in_seconds = Time.get_ticks_msec() / 1000.0
+	
+	position.y = 0.5 + sin(time_in_seconds * float_frequency) * sway_amount
 
