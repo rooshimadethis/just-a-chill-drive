@@ -104,7 +104,8 @@ func _input(event):
 func _update_target_from_input(screen_x: float):
 	# Map screen X (0 to width) to world X (-max_x to max_x)
 	var normalized_x = (screen_x / screen_size.x) - 0.5 # -0.5 to 0.5
-	target_x = normalized_x * 2.0 * max_x
+	# Doubled sensitivity (was 2.0). Now 4.0 so we reach edges with 25% screen movement from center.
+	target_x = normalized_x * 4.0 * max_x
 
 func _process(delta):
 	# Floaty Movement (Tilt)
