@@ -11,20 +11,36 @@ func _ready():
 	setup_environment()
 
 func _process(delta):
-	# Camera Following Logic for Winding Road
+	# Camera Following Logic - follows both road curve and player position
 	
 	# Sync Time
 	var road_time = Time.get_ticks_msec() / 1000.0
 	RenderingServer.global_shader_parameter_set("road_time", road_time)
 	
-	# Camera Logic
+	# Calculate road curve
 	var z = 0.0 # Player position
-	# Use exact same formula as shader
 	var curve_adjust = sin(z * 0.02 - road_time * 0.5) * 1.25
+	
+	# Get player position
+	var player = get_node_or_null("/root/Game/Player")
+	var target_camera_x = 0.0
+	
+	if player:
+		# Camera follows 50% of road curve + 20% of player's X position
+		target_camera_x = (curve_adjust * 0.5) + (player.position.x * 0.2)
+	else:
+		# Fallback to 50% road curve if player not found
+		target_camera_x = curve_adjust * 0.5
+	
+	# Smoothly lerp camera to target position (same damping as player: 10.0)
+	camera_x = lerp(camera_x, target_camera_x, 10.0 * delta)
 	
 	var cam = get_viewport().get_camera_3d()
 	if cam:
-		cam.position.x = curve_adjust
+		cam.position.x = camera_x
+
+
+
 
 func add_harmony(amount: int = 1):
 	harmony_score += amount
