@@ -11,9 +11,35 @@ var lane_lines = []
 var lane_material: ShaderMaterial
 var game_manager: Node
 
+# Object pooling for performance
+var lane_line_pool = []
+var pool_size = 100  # Pre-allocate 100 lane lines
+
 func _ready():
 	game_manager = get_node("/root/Game/GameManager")
 	_initialize_material()
+	_initialize_pool()
+
+func _initialize_pool():
+	# Pre-create lane lines to avoid runtime allocation
+	for i in range(pool_size):
+		var line = _create_lane_line()
+		line.visible = false
+		add_child(line)
+		lane_line_pool.append(line)
+
+func _get_pooled_line() -> MeshInstance3D:
+	if lane_line_pool.size() > 0:
+		var line = lane_line_pool.pop_back()
+		line.visible = true
+		return line
+	else:
+		# Pool exhausted, create new (shouldn't happen with proper sizing)
+		return _create_lane_line()
+
+func _return_to_pool(line: MeshInstance3D):
+	line.visible = false
+	lane_line_pool.append(line)
 
 func _initialize_material():
 	# Create shared material once
@@ -24,7 +50,7 @@ func _initialize_material():
 	# Initial params
 	lane_material.set_shader_parameter("albedo", Color(0.9, 0.9, 0.95))
 	lane_material.set_shader_parameter("emission", Color(0.7, 0.8, 0.9))
-	lane_material.set_shader_parameter("emission_energy", 0.8)
+	lane_material.set_shader_parameter("emission_energy", 0.0)  # No glow on lane lines
 
 func _process(delta):
 	# Update Shared Material based on Harmony (ONCE per frame)
@@ -32,17 +58,11 @@ func _process(delta):
 	if game_manager:
 		harmony = game_manager.harmony_score
 	
-	var target_color = Color(0.9, 0.9, 0.95) # Default White/Blue
-	var target_emission = Color(0.7, 0.8, 0.9)
-	
+	# Only update material if harmony changed significantly
 	if harmony >= 10:
 		# Gold
-		target_color = Color(1.0, 0.85, 0.3)
-		target_emission = Color(1.0, 0.8, 0.1)
-	
-	if lane_material:
-		lane_material.set_shader_parameter("albedo", target_color)
-		lane_material.set_shader_parameter("emission", target_emission)
+		lane_material.set_shader_parameter("albedo", Color(1.0, 0.85, 0.3))
+		lane_material.set_shader_parameter("emission", Color(1.0, 0.8, 0.1))
 
 	# Move existing lane lines (iterate backwards to safely remove)
 	for i in range(lane_lines.size() - 1, -1, -1):
@@ -51,7 +71,7 @@ func _process(delta):
 		
 		# Delete only when well behind camera
 		if line.position.z > 10:
-			line.queue_free()
+			_return_to_pool(line)
 			lane_lines.remove_at(i)
 	
 	# Spawn new lane lines
@@ -62,15 +82,13 @@ func _process(delta):
 
 func spawn_lane_line_set():
 	# Spawn Left Lane Line
-	var line_left = _create_lane_line()
+	var line_left = _get_pooled_line()
 	line_left.position = Vector3(-lane_width, 0.05, -120)  # Slightly above road
-	add_child(line_left)
 	lane_lines.append(line_left)
 	
 	# Spawn Right Lane Line
-	var line_right = _create_lane_line()
+	var line_right = _get_pooled_line()
 	line_right.position = Vector3(lane_width, 0.05, -120)
-	add_child(line_right)
 	lane_lines.append(line_right)
 
 func _create_lane_line() -> MeshInstance3D:

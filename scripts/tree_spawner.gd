@@ -8,6 +8,9 @@ var trees = []
 var tree_templates = []
 var game_manager: Node
 
+# Increase template count for better variety without runtime cost
+const TEMPLATE_COUNT = 12
+
 func _ready():
 	game_manager = get_node("/root/Game/GameManager")
 	
@@ -15,8 +18,8 @@ func _ready():
 	_generate_tree_templates()
 
 func _generate_tree_templates():
-	print("Generating 6 tree templates...")
-	for i in range(6):
+	print("Generating ", TEMPLATE_COUNT, " tree templates...")
+	for i in range(TEMPLATE_COUNT):
 		var tree = _create_tree_mesh()
 		tree_templates.append(tree)
 
@@ -95,13 +98,13 @@ func _create_tree_mesh() -> Node3D:
 		mat.shader = shader
 		mat.set_shader_parameter("albedo", Color(0.2, 0.5, 0.3))
 		mat.set_shader_parameter("emission", Color(0.3, 0.6, 0.4))
-		mat.set_shader_parameter("emission_energy", 0.5)
+		mat.set_shader_parameter("emission_energy", 0.0)  # No glow on trees
 	else:
 		mat = StandardMaterial3D.new()
 		mat.albedo_color = Color(0.2, 0.5, 0.3)
-		mat.emission_enabled = true
+		mat.emission_enabled = false  # No glow on trees
 		mat.emission = Color(0.3, 0.6, 0.4)
-		mat.emission_energy_multiplier = 0.5
+		mat.emission_energy_multiplier = 0.0
 	
 	# Draw the tree structure into temp_container (creates many MeshInstance3D children)
 	_draw_3d_tree(temp_container, sentence, mat)
@@ -177,7 +180,8 @@ func _create_branch_segment(start: Vector3, end: Vector3, thickness: float, mate
 	cylinder.height = length
 	cylinder.top_radius = thickness
 	cylinder.bottom_radius = thickness * 1.2  # Slight taper
-	cylinder.radial_segments = 6 # Low poly for performance
+	cylinder.radial_segments = 4  # Reduced from 6 for better performance
+	cylinder.rings = 1  # Reduced from default for performance
 	
 	mesh_inst.mesh = cylinder
 	# Reuse the same material resource for the template to save memory/draw calls if batched

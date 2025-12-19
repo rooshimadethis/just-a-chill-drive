@@ -6,6 +6,10 @@ var harmony_score: int = 0
 var camera_x: float = 0.0  # Track camera's current X position for smooth lerp
 var audio_system: Node
 
+# Cache for optimization
+var last_camera_update_x: float = 0.0
+var camera_update_threshold: float = 0.01  # Only update if change > 0.01 units
+
 func _ready():
 	# Allow time for the scene to fully load
 	await get_tree().process_frame
@@ -15,7 +19,7 @@ func _ready():
 func _process(delta):
 	# Camera Following Logic - follows both road curve and player position
 	
-	# Sync Time
+	# Sync Time (calculate once per frame)
 	var road_time = Time.get_ticks_msec() / 1000.0
 	RenderingServer.global_shader_parameter_set("road_time", road_time)
 	
@@ -37,9 +41,12 @@ func _process(delta):
 	# Smoothly lerp camera to target position (same damping as player: 10.0)
 	camera_x = lerp(camera_x, target_camera_x, 10.0 * delta)
 	
-	var cam = get_viewport().get_camera_3d()
-	if cam:
-		cam.position.x = camera_x
+	# Only update camera if position changed significantly
+	if abs(camera_x - last_camera_update_x) > camera_update_threshold:
+		last_camera_update_x = camera_x
+		var cam = get_viewport().get_camera_3d()
+		if cam:
+			cam.position.x = camera_x
 
 
 

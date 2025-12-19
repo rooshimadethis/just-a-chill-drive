@@ -4,6 +4,10 @@ extends Area3D
 var collected: bool = false
 var game_manager: Node
 
+# Cache for transparency calculations
+var cached_alpha: float = -1.0
+var alpha_update_threshold: float = 0.01  # Only update if change > 1%
+
 func _ready():
 	# Find GameManager in the scene tree
 	game_manager = get_node("/root/Game/GameManager")
@@ -77,6 +81,12 @@ func _ready():
 		$RightPillar.set_surface_override_material(0, create_gate_mat.call(default_color))
 		$RightPillar.set_surface_override_material(0, create_gate_mat.call(default_color))
 
+func reset_gate():
+	# Reset gate state for pooling
+	collected = false
+	cached_alpha = -1.0
+	visible = true
+
 func set_speed(new_speed):
 	speed = new_speed
 
@@ -127,19 +137,21 @@ func _update_transparency():
 	var t = clamp((position.z - start_z) / (end_z - start_z), 0.0, 1.0)
 	var alpha = 1.0 - t # Invert for transparency
 	
-	_set_transparency(alpha)
+	# Only update if alpha changed significantly
+	if abs(alpha - cached_alpha) > alpha_update_threshold:
+		cached_alpha = alpha
+		_set_transparency(alpha)
 
 func _set_transparency(alpha: float):
 	# Apply transparency to children meshes via material
 	var targets = ["LeftPillar", "RightPillar"]
+	var target_opacity = (1.0 - alpha) * 0.25  # Pre-calculate once
+	
 	for target_name in targets:
 		if has_node(target_name):
 			var node = get_node(target_name)
 			var mat = node.get_surface_override_material(0)
 			if mat:
-				# Target alpha is 0.25 (Very transparent Ghostly) when fully visible
-				var target_opacity = (1.0 - alpha) * 0.25
-				
 				if mat is ShaderMaterial:
 					var col = mat.get_shader_parameter("albedo")
 					if col:

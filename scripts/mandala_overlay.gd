@@ -60,6 +60,8 @@ func _process(delta):
 	if not enable_mandala:
 		return
 	
+	var opacity_changed = false
+	
 	# Handle activation timing
 	if not is_active and not is_fading_in:
 		time_until_next_activation -= delta
@@ -69,6 +71,7 @@ func _process(delta):
 	# Handle fade in
 	if is_fading_in:
 		current_opacity += (delta / fade_duration)
+		opacity_changed = true
 		if current_opacity >= 1.0:
 			current_opacity = 1.0
 			is_fading_in = false
@@ -84,12 +87,15 @@ func _process(delta):
 	# Handle fade out
 	if is_fading_out:
 		current_opacity -= (delta / fade_duration)
+		opacity_changed = true
 		if current_opacity <= 0.0:
 			current_opacity = 0.0
 			is_fading_out = false
 			_schedule_next_activation()
 	
-	_update_shader_params()
+	# Only update shader if opacity changed
+	if opacity_changed and mandala_material:
+		mandala_material.set_shader_parameter("opacity", current_opacity)
 
 func _start_effect():
 	is_fading_in = true
@@ -106,6 +112,7 @@ func _schedule_next_activation():
 	print("Mandala effect scheduled in ", time_until_next_activation, " seconds")
 
 func _update_shader_params():
+	# Set static parameters once (only called from _ready)
 	if mandala_material:
 		mandala_material.set_shader_parameter("mirror_segments", mirror_segments)
 		mandala_material.set_shader_parameter("rotation_speed", rotation_speed)
@@ -113,5 +120,5 @@ func _update_shader_params():
 		mandala_material.set_shader_parameter("sky_threshold", sky_threshold)
 		mandala_material.set_shader_parameter("blend_softness", blend_softness)
 		mandala_material.set_shader_parameter("center_offset", center_offset)
-		mandala_material.set_shader_parameter("opacity", current_opacity)
+		mandala_material.set_shader_parameter("opacity", 0.0)
 

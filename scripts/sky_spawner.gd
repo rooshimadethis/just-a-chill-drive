@@ -121,8 +121,8 @@ func _create_star_cluster() -> Node3D:
 		var sphere = SphereMesh.new()
 		sphere.radius = randf_range(0.15, 0.35)  # Bigger background stars
 		sphere.height = sphere.radius * 2
-		sphere.radial_segments = 6 # Low poly stars
-		sphere.rings = 3
+		sphere.radial_segments = 4  # Reduced from 6 for performance
+		sphere.rings = 2  # Reduced from 3 for performance
 		mesh_inst.mesh = sphere
 		# Spread stars across the whole sky instead of clustering
 		mesh_inst.position = Vector3(
@@ -146,8 +146,8 @@ func _create_cloud() -> Node3D:
 		var size = randf_range(2.0, 5.0)
 		sphere.radius = size
 		sphere.height = size * 1.8 # Slightly flattened
-		sphere.radial_segments = 12
-		sphere.rings = 6
+		sphere.radial_segments = 8  # Reduced from 12 for performance
+		sphere.rings = 4  # Reduced from 6 for performance
 		mesh_inst.mesh = sphere
 		
 		# Clump spheres together
@@ -198,20 +198,24 @@ func _create_constellation() -> Node3D:
 	mat.emission_enabled = true
 	var hue = randf_range(0.5, 0.85) # Cyan -> Blue -> Purple
 	mat.emission = Color.from_hsv(hue, 0.7, 1.0)
-	mat.emission_energy_multiplier = 2.0
+	mat.emission_energy_multiplier = 3.0  # Brighter for visibility
 	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	
-	_recursive_star(container, Vector3.ZERO, 1.2, max_depth, mat)
+	# Create dimmer material for lines (50% opacity)
+	var line_mat = mat.duplicate()
+	line_mat.emission_energy_multiplier = 1.5  # Half the brightness of stars
+	
+	_recursive_star(container, Vector3.ZERO, 1.2, max_depth, mat, line_mat)
 	
 	return _merge_meshes_in_container(container, mat)
 
-func _recursive_star(container: Node3D, pos: Vector3, size: float, depth: int, mat: StandardMaterial3D):
+func _recursive_star(container: Node3D, pos: Vector3, size: float, depth: int, mat: StandardMaterial3D, line_mat: StandardMaterial3D):
 	var mesh_inst = MeshInstance3D.new()
 	var sphere = SphereMesh.new()
-	sphere.radius = size * 0.2
-	sphere.height = size * 0.4
-	sphere.radial_segments = 8
-	sphere.rings = 4
+	sphere.radius = size * 0.3  # Bigger stars for visibility
+	sphere.height = size * 0.6
+	sphere.radial_segments = 6  # Reduced from 8 for performance
+	sphere.rings = 3  # Reduced from 4 for performance
 	mesh_inst.mesh = sphere
 	mesh_inst.position = pos
 	# Note: We don't need to set material here as we set it on the merged mesh
@@ -223,13 +227,13 @@ func _recursive_star(container: Node3D, pos: Vector3, size: float, depth: int, m
 	var branches = randi_range(2, 3)
 	for i in range(branches):
 		var dir = Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-0.5, 0.5)).normalized()
-		var len = size * randf_range(4.0, 6.0)  # Spread farther apart
+		var len = size * randf_range(3.5, 5.0)  # Spread farther but still visible
 		var next_pos = pos + (dir * len)
 		
-		var line = _create_line(pos, next_pos, size * 0.05, mat)
+		var line = _create_line(pos, next_pos, size * 0.05, line_mat)
 		container.add_child(line)
 		
-		_recursive_star(container, next_pos, size * 0.6, depth - 1, mat)
+		_recursive_star(container, next_pos, size * 0.6, depth - 1, mat, line_mat)
 
 func _create_line(p1: Vector3, p2: Vector3, thickness: float, mat: StandardMaterial3D) -> MeshInstance3D:
 	var mesh_inst = MeshInstance3D.new()
