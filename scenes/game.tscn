@@ -5,6 +5,7 @@
 [ext_resource type="PackedScene" path="res://scenes/gate.tscn" id="3_gate"]
 [ext_resource type="Script" path="res://scripts/tree_spawner.gd" id="4_trees"]
 [ext_resource type="Script" path="res://scripts/game_manager.gd" id="4_gamemanager"]
+[ext_resource type="Script" path="res://scripts/lane_line_spawner.gd" id="7_lanelines"]
 [ext_resource type="Script" path="res://scripts/ui_overlay.gd" id="5_ui"]
 
 [sub_resource type="Environment" id="env_1"]
@@ -46,6 +47,9 @@ transform = Transform3D(1, 0, 0, 0, 0.965926, 0.258819, 0, -0.258819, 0.965926, 
 
 [node name="TreeSpawner" type="Node3D" parent="."]
 script = ExtResource("4_trees")
+
+[node name="LaneLineSpawner" type="Node3D" parent="."]
+script = ExtResource("7_lanelines")
 
 [node name="Spawner" type="Node3D" parent="."]
 script = ExtResource("2_spawner")
