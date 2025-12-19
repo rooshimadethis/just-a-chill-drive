@@ -190,6 +190,20 @@ func setup_environment():
 	get_node("/root/Game").add_child(day_night)
 	day_night.setup(world_env)
 	
+	# Add Rain System (3D Particles) attached to Camera
+	var cam = get_viewport().get_camera_3d()
+	if cam:
+		var rain_script = load("res://scripts/rain_system.gd")
+		if rain_script:
+			var rain_sys = rain_script.new()
+			rain_sys.name = "RainSystem"
+			cam.add_child(rain_sys)
+			# Position slightly above and ahead of camera to fill view
+			rain_sys.position = Vector3(0, 10, -10) 
+			print("GameManager: RainSystem added to Camera")
+	else:
+		push_error("GameManager: Could not find Camera3D for RainSystem")
+	
 	# 4. Road Winding Shader
 	setup_road()
 
