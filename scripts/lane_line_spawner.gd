@@ -1,6 +1,6 @@
 extends Node3D
 
-@export var spawn_interval: float = 1.0  # Twice as often as gates (2.0s)
+@export var spawn_interval: float = 1.0  # 60 BPM: 1 beat = 1 second (visual rhythm)
 @export var scroll_speed: float = 17.0  # Reduced 10% (was 18.8)
 @export var lane_width: float = 2.0  # Distance from center
 @export var line_length: float = 3.0  # Length of each dash

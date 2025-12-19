@@ -4,10 +4,12 @@ signal score_updated(new_score)
 
 var harmony_score: int = 0
 var camera_x: float = 0.0  # Track camera's current X position for smooth lerp
+var audio_system: Node
 
 func _ready():
 	# Allow time for the scene to fully load
 	await get_tree().process_frame
+	setup_audio()
 	setup_environment()
 
 func _process(delta):
@@ -42,9 +44,21 @@ func _process(delta):
 
 
 
+func setup_audio():
+	# Load and instantiate the AudioSystem script
+	var AudioSystemScript = load("res://scripts/audio_system.gd")
+	audio_system = AudioSystemScript.new()
+	audio_system.name = "AudioSystem"
+	add_child(audio_system)
+	print("AudioSystem initialized: Brown noise engine running")
+
 func add_harmony(amount: int = 1):
 	harmony_score += amount
 	score_updated.emit(harmony_score)
+	
+	# Trigger relaxing chord progression
+	if audio_system and audio_system.has_method("play_chord"):
+		audio_system.play_chord()
 
 func reset_score():
 	harmony_score = 0

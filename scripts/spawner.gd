@@ -1,7 +1,7 @@
 extends Node3D
 
 @export var obstacle_scene: PackedScene
-@export var spawn_interval: float = 2.0
+@export var spawn_interval: float = 4.0  # 60 BPM: 4 beats = 4 seconds (synced with chord changes)
 @export var speed: float = 17.0  # Reduced 10% (was 18.8)
 
 var spawn_timer: float = 0.0
@@ -14,8 +14,8 @@ func _ready():
 func _process(delta):
 	spawn_timer += delta
 	if spawn_timer >= spawn_interval:
-		# Add organic variance (+/- 0.5s) to avoid robotic feeling
-		spawn_timer = randf_range(-0.5, 0.5) 
+		# Reset timer with slight organic variance (+/- 0.2s) for natural feel
+		spawn_timer = randf_range(-0.2, 0.2) 
 		spawn_gate()
 
 func spawn_gate():
