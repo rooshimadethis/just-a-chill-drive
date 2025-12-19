@@ -33,3 +33,11 @@ project/assembly_name="driver"
 
 renderer/rendering_method="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true
+
+[shader_globals]
+
+road_time={
+"type": "float",
+"value": 0.0
+}
+

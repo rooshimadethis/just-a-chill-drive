@@ -29,43 +29,44 @@ func setup_visuals():
 	car_visuals.name = "CarVisuals"
 	add_child(car_visuals)
 	
-	# Move existing MeshInstance to CarVisuals
-	mesh_instance = $MeshInstance3D
-	remove_child(mesh_instance)
-	car_visuals.add_child(mesh_instance)
-	
-	# 2. Car Body (Rectangular Prism)
-	var box = BoxMesh.new()
-	box.size = Vector3(1.1, 0.6, 2.4) # Width, Height, Length
-	# Subdivision for shader bending
-	box.subdivide_width = 4
-	box.subdivide_height = 2
-	box.subdivide_depth = 8
-	
-	mesh_instance.mesh = box
-	
-	# Reset transforms (Box matches world axes)
-	mesh_instance.rotation = Vector3.ZERO
-	mesh_instance.scale = Vector3.ONE 
-	
-	# Soft Plastic Material
-	var mat
-	if game_manager and game_manager.has_method("get_opaque_winding_shader"):
-		var shader = game_manager.get_opaque_winding_shader()
-		mat = ShaderMaterial.new()
-		mat.shader = shader
-		mat.set_shader_parameter("albedo", Color(0.8, 0.2, 0.4)) # Nice car color - "Soft Plastic"
-		mat.set_shader_parameter("roughness", 0.8) # High roughness
+	# 2. Car Body (Imported GLB)
+	if has_node("MeshInstance3D"):
+		get_node("MeshInstance3D").queue_free()
+		
+	var car_scene = load("res://assets/car/sedan-sports.glb")
+	if car_scene:
+		var car_node = car_scene.instantiate()
+		car_visuals.add_child(car_node)
+		
+		# Adjust orientation (GLB often faces +Z, we look -Z)
+		car_node.rotation_degrees.y = 180
+		# Adjust position to center it
+		car_node.position.y = -0.3 # Lower it slightly if wheels float
+		
+		# Create Winding Shader Material
+		var mat
+		if game_manager and game_manager.has_method("get_rigid_winding_shader"):
+			var shader = game_manager.get_rigid_winding_shader()
+			mat = ShaderMaterial.new()
+			mat.shader = shader
+			mat.set_shader_parameter("albedo", Color(0.8, 0.2, 0.4)) # Keep signature pink/red color
+			mat.set_shader_parameter("roughness", 0.4) # Shinier car
+		
+		if mat:
+			_apply_material_recursive(car_node, mat)
 	else:
-		mat = StandardMaterial3D.new()
-		mat.albedo_color = Color(0.8, 0.2, 0.4) # Nice car color - "Soft Plastic"
-		mat.roughness = 0.8 # High roughness
-		mat.metallic = 0.0
-	
-	mesh_instance.set_surface_override_material(0, mat)
-	
-	# Prevent culling when shader displaces mesh outside original AABB
-	mesh_instance.extra_cull_margin = 16384.0
+		print("Failed to load car model, fallback to box not implemented.")
+
+func _apply_material_recursive(node: Node, material: Material):
+	if node is MeshInstance3D:
+		# Apply to all surfaces
+		for i in range(node.mesh.get_surface_count()):
+			node.set_surface_override_material(i, material)
+			# Important: Expand cull margin so the car doesn't disappear when curving off-screen
+			node.extra_cull_margin = 16384.0
+			
+	for child in node.get_children():
+		_apply_material_recursive(child, material)
 	
 	# 3. Fireflies (Particle System)
 	fireflies = CPUParticles3D.new()

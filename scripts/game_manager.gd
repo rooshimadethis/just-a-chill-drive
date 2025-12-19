@@ -11,27 +11,23 @@ func _ready():
 
 func _process(delta):
 	# Camera Following Logic for Winding Road
-	# We want the camera to stay centered on the visual road, which is displaced by the shader.
-	# The shader logic is: offset = sin(z * 0.02 - TIME * 0.5) * 1.25
-	# The "Focal Point" is the Player at Z=0.
-	# If we shift the camera by the offset at Z=0, the road at Z=0 (and the player) will appear centered.
 	
-	var t = Time.get_ticks_msec() / 1000.0
-	# Note: TIME in shader ~ Time.get_ticks_msec()/1000. If scene loads instantly, they match.
-	# If there is drift, it will be a constant offset.
+	# Sync Time
+	var road_time = Time.get_ticks_msec() / 1000.0
+	RenderingServer.global_shader_parameter_set("road_time", road_time)
 	
+	# Camera Logic
 	var z = 0.0 # Player position
-	var curve_adjust = sin(z * 0.02 - t * 0.5) * 1.25
+	# Use exact same formula as shader
+	var curve_adjust = sin(z * 0.02 - road_time * 0.5) * 1.25
 	
 	var cam = get_viewport().get_camera_3d()
 	if cam:
-		# The camera's base X is 0. We add the curve offset.
 		cam.position.x = curve_adjust
 
 func add_harmony(amount: int = 1):
 	harmony_score += amount
 	score_updated.emit(harmony_score)
-	# print("Harmony increased: ", harmony_score) # Removed console noise
 
 func reset_score():
 	harmony_score = 0
@@ -44,36 +40,11 @@ func setup_environment():
 		world_env = WorldEnvironment.new()
 		get_node("/root/Game").add_child(world_env)
 	
-	var env = Environment.new()
-	world_env.environment = env
-	
-	# 1. Background (Dusk/Dream)
-	env.background_mode = Environment.BG_SKY
-	var sky = Sky.new()
-	var sky_mat = ProceduralSkyMaterial.new()
-	
-	# Colors: Deep Purple to Soft Teal/Pink
-	sky_mat.sky_top_color = Color(0.1, 0.05, 0.2) # Deep Purple
-	sky_mat.sky_horizon_color = Color(0.0, 0.5, 0.5).lerp(Color(1.0, 0.4, 0.7), 0.5) # Teal/Pink Mix
-	sky_mat.ground_bottom_color = Color(0.05, 0.05, 0.1)
-	sky_mat.ground_horizon_color = sky_mat.sky_horizon_color
-	
-	sky.sky_material = sky_mat
-	env.sky = sky
-	
-	# 2. Fog (Infinite Journey)
-	env.fog_enabled = true
-	env.fog_light_color = sky_mat.sky_horizon_color
-	env.fog_density = 0.007 # 30% weaker (was 0.01)
-	# Note: Volumetric fog is heavier, sticking to standard fog for compatibility/performance consistency
-	env.fog_sky_affect = 1.0
-	
-	
-	# 3. Glow (Bloom) - Pulsing light
-	env.glow_enabled = true
-	env.glow_intensity = 1.5
-	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
-	env.glow_hdr_threshold = 0.5 # Lower threshold to catch more light
+	# Create and initialize DayNightCycle
+	var day_night = DayNightCycle.new()
+	day_night.name = "DayNightSystem"
+	get_node("/root/Game").add_child(day_night)
+	day_night.setup(world_env)
 	
 	# 4. Road Winding Shader
 	setup_road()
@@ -94,23 +65,21 @@ uniform float emission_energy = 1.0;
 uniform float roughness : hint_range(0,1) = 0.5;
 uniform float alpha_scissor_threshold : hint_range(0,1) = 0.0;
 
+global uniform float road_time;
 varying float v_world_z;
 
 void vertex() {
-   // Winding Road Effect (Gentle Sine Wave)
-   // Based on World Z position and Time
-   // IMPORTANT: All objects must use this same logic to align visually!
+   // Winding Road Effect
    float z = (MODEL_MATRIX * vec4(VERTEX, 1.0)).z;
    v_world_z = z;
-   float offset = sin(z * 0.02 - TIME * 0.5) * 1.25; 
+   float offset = sin(z * 0.02 - road_time * 0.5) * 1.25; 
    VERTEX.x += offset;
 }
 
 void fragment() {
 	vec4 albedo_tex = albedo;
 	
-	// Distance Fade Logic (Z: -120 -> -90)
-	// We calculate a fade factor based on world Z
+	// Distance Fade Logic
 	float fade_start = -120.0;
 	float fade_end = -90.0;
 	float fade = clamp((v_world_z - fade_start) / (fade_end - fade_start), 0.0, 1.0);
@@ -118,7 +87,7 @@ void fragment() {
 	ALBEDO = albedo_tex.rgb;
 	ALPHA = albedo_tex.a * fade;
 	ROUGHNESS = roughness;
-	EMISSION = emission.rgb * emission_energy * fade; // Also fade emission
+	EMISSION = emission.rgb * emission_energy * fade;
 }
 """
 	_winding_shader = Shader.new()
@@ -140,19 +109,18 @@ uniform vec4 emission : source_color = vec4(0.0);
 uniform float emission_energy = 1.0;
 uniform float roughness : hint_range(0,1) = 0.5;
 
+global uniform float road_time;
+
 void vertex() {
-   // Winding Road Effect (Gentle Sine Wave)
-   // Based on World Z position and Time
-   // COMPATIBILITY: Must match transparent shader logic!
+   // Winding Road Effect
    float z = (MODEL_MATRIX * vec4(VERTEX, 1.0)).z;
-   float offset = sin(z * 0.02 - TIME * 0.5) * 1.25; 
+   float offset = sin(z * 0.02 - road_time * 0.5) * 1.25; 
    VERTEX.x += offset;
 }
 
 void fragment() {
 	vec4 albedo_tex = albedo;
 	ALBEDO = albedo_tex.rgb;
-	// No ALPHA assignment -> Opaque pipeline
 	ROUGHNESS = roughness;
 	EMISSION = emission.rgb * emission_energy;
 }
@@ -160,6 +128,41 @@ void fragment() {
 	_opaque_winding_shader = Shader.new()
 	_opaque_winding_shader.code = shader_code
 	return _opaque_winding_shader
+
+var _rigid_winding_shader: Shader
+
+func get_rigid_winding_shader() -> Shader:
+	if _rigid_winding_shader:
+		return _rigid_winding_shader
+		
+	var shader_code = """
+shader_type spatial;
+render_mode blend_mix,depth_draw_opaque,cull_back,diffuse_burley,specular_schlick_ggx;
+
+uniform vec4 albedo : source_color = vec4(1.0);
+uniform vec4 emission : source_color = vec4(0.0);
+uniform float emission_energy = 1.0;
+uniform float roughness : hint_range(0,1) = 0.5;
+
+global uniform float road_time;
+
+void vertex() {
+   // Rigid Winding Road Effect
+   float z = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).z;
+   float offset = sin(z * 0.02 - road_time * 0.5) * 1.25; 
+   VERTEX.x += offset;
+}
+
+void fragment() {
+	vec4 albedo_tex = albedo;
+	ALBEDO = albedo_tex.rgb;
+	ROUGHNESS = roughness;
+	EMISSION = emission.rgb * emission_energy;
+}
+"""
+	_rigid_winding_shader = Shader.new()
+	_rigid_winding_shader.code = shader_code
+	return _rigid_winding_shader
 
 func setup_road():
 	# Use OPAQUE shader for ground/road to ensure correct depth sorting
