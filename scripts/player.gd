@@ -43,9 +43,9 @@ func setup_visuals():
 		# Adjust position to center it
 		car_node.position.y = -0.3 # Lower it slightly if wheels float
 		
-		# Create Winding Shader Materials with calming colors
-		if game_manager and game_manager.has_method("get_rigid_winding_shader"):
-			var shader = game_manager.get_rigid_winding_shader()
+		# Create Visual Only Shader (Calculated on CPU)
+		if game_manager and game_manager.has_method("get_car_visual_shader"):
+			var shader = game_manager.get_car_visual_shader()
 			_apply_multi_color_materials(car_node, shader)
 	else:
 		print("Failed to load car model, fallback to box not implemented.")
@@ -167,6 +167,15 @@ func _process(delta):
 	var target_rot_z = -Input.get_axis("ui_left", "ui_right") * 0.1
 	if car_visuals:
 		car_visuals.rotation.z = lerp_angle(car_visuals.rotation.z, target_rot_z, delta * 5.0)
+		
+		# MANUAL CURVE APPLICATION:
+		# Since headlights are children of the car, we must move the car TRANSFORM to the curve.
+		# A vertex shader would only move the mesh, leaving lights behind.
+		if game_manager and game_manager.has_method("get_world_curve_offset"):
+			var road_time = Time.get_ticks_msec() / 1000.0
+			var curve = game_manager.get_world_curve_offset(global_position.z, global_position.x, road_time)
+			car_visuals.position.x = curve.x
+			car_visuals.position.y = curve.y # This applies the vertical drop from curvature
 	
 	# Check Harmony for Fireflies
 	if game_manager and game_manager.harmony_score >= 20:

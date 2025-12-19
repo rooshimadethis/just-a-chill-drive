@@ -12,6 +12,14 @@ var audio_system: Node
 var last_camera_update_x: float = 0.0
 var camera_update_threshold: float = 0.01  # Only update if change > 0.01 units
 
+# ===== CURVE CONSTANTS =====
+# Defined here to sync between GDScript and Shaders
+const CURVE_STRENGTH_FORWARD: float = 0.003
+const CURVE_STRENGTH_SIDE: float = 0.001
+const WINDING_FREQUENCY: float = 0.02
+const WINDING_TIME_SCALE: float = 0.5
+const WINDING_AMPLITUDE: float = 1.25
+
 # ===== CENTRALIZED 60 BPM METRONOME =====
 # This is the single source of truth for all timing in the game
 const BPM: float = 60.0
@@ -66,7 +74,6 @@ func _process(delta):
 	var z = 0.0 # Player position
 	var curve_adjust = sin(z * 0.02 - road_time * 0.5) * 1.25
 	
-	# Get player position
 	var player = get_node_or_null("/root/Game/Player")
 	var target_camera_x = 0.0
 	
@@ -279,6 +286,61 @@ void fragment() {
 	_opaque_winding_shader = Shader.new()
 	_opaque_winding_shader.code = shader_code
 	return _opaque_winding_shader
+
+var _car_visual_shader: Shader
+
+func get_car_visual_shader() -> Shader:
+	"""Shader for the car that ONLY handles coloring, no vertex displacement.
+	Transformation is handled via script in player.gd to ensure lights follow."""
+	if _car_visual_shader:
+		return _car_visual_shader
+		
+	var shader_code = """
+shader_type spatial;
+render_mode blend_mix,depth_draw_opaque,cull_back,diffuse_burley,specular_schlick_ggx;
+
+uniform vec4 albedo : source_color = vec4(1.0);
+uniform vec4 emission : source_color = vec4(0.0);
+uniform float emission_energy = 1.0;
+uniform float roughness : hint_range(0,1) = 0.5;
+
+void vertex() {
+	// No displacement - handled by script
+}
+
+void fragment() {
+	vec4 albedo_tex = albedo;
+	ALBEDO = albedo_tex.rgb;
+	ROUGHNESS = roughness;
+	EMISSION = emission.rgb * emission_energy;
+}
+"""
+	_car_visual_shader = Shader.new()
+	_car_visual_shader.code = shader_code
+	return _car_visual_shader
+
+func get_world_curve_offset(pos_z: float, pos_x: float = 0.0, time: float = 0.0) -> Vector3:
+	"""Calculates the curve offset for a given position and time (CPU side).
+	Returns Vector3(x_offset, y_drop, 0)"""
+	
+	# 1. Winding (X Offset)
+	# sin(z * 0.02 - road_time * 0.5) * 1.25
+	var x_offset = sin(pos_z * WINDING_FREQUENCY - time * WINDING_TIME_SCALE) * WINDING_AMPLITUDE
+	
+	# 2. Forward Curve (Y Drop)
+	# dist * dist * strength
+	var dist_forward = abs(pos_z)
+	var y_drop_forward = dist_forward * dist_forward * CURVE_STRENGTH_FORWARD
+	
+	# 3. Side Curve (Y Drop)
+	# Calc based on visual X (pos_x + x_offset)
+	# The shader uses dist_from_center = abs(world_vertex.x)
+	var final_x = pos_x + x_offset
+	var dist_side = abs(final_x)
+	var y_drop_side = dist_side * dist_side * CURVE_STRENGTH_SIDE
+	
+	return Vector3(x_offset, -(y_drop_forward + y_drop_side), 0.0)
+
 
 var _rigid_winding_shader: Shader
 
