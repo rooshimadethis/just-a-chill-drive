@@ -114,8 +114,8 @@ func _draw_source_segment_highlight(center_pos: Vector2, segment_angle: float):
 	# This matches the shader's rotation offset
 	var half_segment = segment_angle * 0.5
 	
-	# Rotate counter-clockwise by one full segment (add positive angle)
-	var start_angle = segment_angle
+	# Rotate counter-clockwise by one full segment (subtract angle)
+	var start_angle = -segment_angle
 	var end_angle = start_angle + half_segment
 	
 	# Create a polygon to fill the source segment
@@ -210,7 +210,7 @@ func _draw_labels(center_pos: Vector2):
 	var segment_angle = TAU / float(mirror_segments)
 	var half_segment = segment_angle * 0.5
 	# Rotate counter-clockwise by one segment
-	var start_angle = segment_angle
+	var start_angle = -segment_angle
 	var end_angle = start_angle + half_segment
 	var label_angle = (start_angle + end_angle) * 0.5  # Middle of the source segment
 	var label_distance = 150.0  # Distance from center
