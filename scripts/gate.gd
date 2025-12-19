@@ -18,11 +18,15 @@ func _process(delta):
 	if position.y > get_viewport_rect().size.y + 100:
 		queue_free()
 
-func _on_body_entered(body):
-	if body.name == "Player" and not collected:
+func _on_area_entered(area):
+	if area.name == "Player" and not collected:
 		collected = true
 		if game_manager:
 			game_manager.add_harmony(1)
+		
+		# Haptic Feedback
+		if OS.get_name() == "Android" or OS.get_name() == "iOS":
+			Input.vibrate_handheld(50)
 		
 		# Visual Feedback: Fade out and scale up
 		var tween = get_tree().create_tween()

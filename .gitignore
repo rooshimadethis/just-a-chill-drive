@@ -12,6 +12,9 @@ export_presets.cfg
 data_*/
 mono_crash.*.json
 
+# Android export build artifacts
+android/build/
+
 # System specific
 .DS_Store
 Thumbs.db

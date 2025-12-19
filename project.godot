@@ -15,19 +15,20 @@ run/main_scene="res://scenes/game.tscn"
 config/features=PackedStringArray("4.5", "Mobile")
 config/icon="res://icon.svg"
 
-[dotnet]
-
-project/assembly_name="driver"
-
-[rendering]
-
-renderer/rendering_method="mobile"
-
 [display]
 
 window/size/viewport_width=720
 window/size/viewport_height=1280
 window/size/window_width_override=360
 window/size/window_height_override=640
-window/handheld/orientation="portrait"
 window/stretch/mode="canvas_items"
+window/handheld/orientation=1
+
+[dotnet]
+
+project/assembly_name="driver"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true

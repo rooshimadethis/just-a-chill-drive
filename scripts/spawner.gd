@@ -13,7 +13,8 @@ func _ready():
 func _process(delta):
 	spawn_timer += delta
 	if spawn_timer >= spawn_interval:
-		spawn_timer = 0.0
+		# Add organic variance (+/- 0.5s) to avoid robotic feeling
+		spawn_timer = randf_range(-0.5, 0.5) 
 		spawn_gate()
 
 func spawn_gate():
