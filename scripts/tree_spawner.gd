@@ -76,135 +76,74 @@ func _instantiate_tree(template: Node3D) -> Node3D:
 	return template.duplicate()
 
 func _create_tree_mesh() -> Node3D:
-	# Create a temporary container for the fractal tree structure
-	var temp_container = Node3D.new()
+	# Create a container for the tree
+	var tree_root = Node3D.new()
 	
-	# Generate L-System sentence for fractal structure
-	var l_sys = LSystem.new()
-	l_sys.axiom = "F"
-	l_sys.rules = {
-		"F": "F[+F][-F][++F][--F]"  # Organic branching pattern
-	}
-	l_sys.iterations = 3
-	var sentence = l_sys.generate_sentence()
-	
-	# Prepare Material (Shared)
-	var mat
+	# Get the winding shader
 	var shader = null
 	if game_manager and game_manager.has_method("get_winding_shader"):
 		shader = game_manager.get_winding_shader()
 	
+	# 1. TRUNK MATERIAL
+	var trunk_mat
 	if shader:
-		mat = ShaderMaterial.new()
-		mat.shader = shader
-		mat.set_shader_parameter("albedo", Color(0.2, 0.5, 0.3))
-		mat.set_shader_parameter("emission", Color(0.3, 0.6, 0.4))
-		mat.set_shader_parameter("emission_energy", 0.0)  # No glow on trees
+		trunk_mat = ShaderMaterial.new()
+		trunk_mat.shader = shader
+		trunk_mat.set_shader_parameter("albedo", Color(0.35, 0.25, 0.15)) # Dark Brown
+		trunk_mat.set_shader_parameter("emission_energy", 0.0)
 	else:
-		mat = StandardMaterial3D.new()
-		mat.albedo_color = Color(0.2, 0.5, 0.3)
-		mat.emission_enabled = false  # No glow on trees
-		mat.emission = Color(0.3, 0.6, 0.4)
-		mat.emission_energy_multiplier = 0.0
+		trunk_mat = StandardMaterial3D.new()
+		trunk_mat.albedo_color = Color(0.35, 0.25, 0.15)
 	
-	# Draw the tree structure into temp_container (creates many MeshInstance3D children)
-	_draw_3d_tree(temp_container, sentence, mat)
+	# 2. FOLIAGE MATERIAL
+	var foliage_mat
+	if shader:
+		foliage_mat = ShaderMaterial.new()
+		foliage_mat.shader = shader
+		# Randomize green slightly for specific tree template
+		var green_var = randf_range(0.0, 0.15)
+		foliage_mat.set_shader_parameter("albedo", Color(0.1 + green_var, 0.4 + green_var, 0.2 + green_var))
+		foliage_mat.set_shader_parameter("emission_energy", 0.0)
+	else:
+		foliage_mat = StandardMaterial3D.new()
+		foliage_mat.albedo_color = Color(0.1, 0.4, 0.2)
 	
-	# --- OPTIMIZATION START ---
-	# Merge all branch meshes into a single MeshInstance3D to reduce draw calls
-	var st = SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	# --- BUILD TRUNK ---
+	var trunk = MeshInstance3D.new()
+	var trunk_mesh = CylinderMesh.new()
+	trunk_mesh.top_radius = 0.4
+	trunk_mesh.bottom_radius = 0.5
+	trunk_mesh.height = 2.0
+	trunk_mesh.radial_segments = 6 # Low poly
+	trunk_mesh.rings = 1
+	trunk.mesh = trunk_mesh
+	trunk.position.y = 1.0
+	trunk.material_override = trunk_mat
+	tree_root.add_child(trunk)
 	
-	for child in temp_container.get_children():
-		if child is MeshInstance3D:
-			st.append_from(child.mesh, 0, child.transform)
-			child.queue_free() # Mark for deletion
+	# --- BUILD FOLIAGE (Stacked Cones) ---
+	var tiers = randi_range(3, 4)
+	var current_y = 1.5
+	var current_radius = 2.5
+	var height_step = 1.8
 	
-	temp_container.queue_free() # We don't need the container anymore
-	
-	# Final merged mesh
-	var merged_mesh = st.commit()
-	var final_instance = MeshInstance3D.new()
-	final_instance.mesh = merged_mesh
-	final_instance.set_surface_override_material(0, mat)
-	# --- OPTIMIZATION END ---
-	
-	return final_instance
-
-func _draw_3d_tree(container: Node3D, sentence: String, material: Material):
-	# Turtle state
-	var transform_stack = []
-	var current_pos = Vector3.ZERO
-	var current_dir = Vector3.UP  # Start pointing up
-	var step_length = 1.2
-	var branch_angle = 25.0
-	var branch_thickness = 0.15
-	
-	for char in sentence:
-		match char:
-			"F":
-				# Draw a branch segment
-				var next_pos = current_pos + current_dir * step_length
-				var branch = _create_branch_segment(current_pos, next_pos, branch_thickness, material)
-				container.add_child(branch)
-				current_pos = next_pos
-				# Reduce thickness and length for natural taper
-				step_length *= 0.85
-				branch_thickness *= 0.75
-			"+":
-				# Rotate around Z axis (right) with organic variation
-				var angle = deg_to_rad(branch_angle + randf_range(-8, 8))
-				current_dir = current_dir.rotated(Vector3(0, 0, 1), angle)
-			"-":
-				# Rotate around Z axis (left) with organic variation
-				var angle = deg_to_rad(branch_angle + randf_range(-8, 8))
-				current_dir = current_dir.rotated(Vector3(0, 0, 1), -angle)
-			"[":
-				# Save state
-				transform_stack.push_back([current_pos, current_dir, step_length, branch_thickness])
-			"]":
-				# Restore state
-				if transform_stack.size() > 0:
-					var state = transform_stack.pop_back()
-					current_pos = state[0]
-					current_dir = state[1]
-					step_length = state[2]
-					branch_thickness = state[3]
-
-func _create_branch_segment(start: Vector3, end: Vector3, thickness: float, material: Material) -> MeshInstance3D:
-	# Create a cylinder for the branch
-	var mesh_inst = MeshInstance3D.new()
-	var cylinder = CylinderMesh.new()
-	
-	# Calculate length and orientation
-	var length = start.distance_to(end)
-	cylinder.height = length
-	cylinder.top_radius = thickness
-	cylinder.bottom_radius = thickness * 1.2  # Slight taper
-	cylinder.radial_segments = 4  # Reduced from 6 for better performance
-	cylinder.rings = 1  # Reduced from default for performance
-	
-	mesh_inst.mesh = cylinder
-	# Reuse the same material resource for the template to save memory/draw calls if batched
-	# We will duplicate it when instantiating the tree row
-	mesh_inst.set_surface_override_material(0, material)
-	
-	# Position at midpoint
-	var midpoint = (start + end) / 2.0
-	mesh_inst.position = midpoint
-	
-	# Orient the cylinder to point from start to end
-	var direction = (end - start).normalized()
-	if direction.length() > 0.001:  # Avoid zero-length branches
-		# Align Y-axis (cylinder's default up) with the direction vector
-		var up = Vector3.UP
-		if abs(direction.dot(up)) > 0.99:  # Nearly parallel
-			up = Vector3.RIGHT
-		var right = direction.cross(up).normalized()
-		var forward = right.cross(direction).normalized()
+	for i in range(tiers):
+		var cone = MeshInstance3D.new()
+		var cone_mesh = CylinderMesh.new()
+		cone_mesh.bottom_radius = current_radius
+		cone_mesh.top_radius = 0.0 # Cone
+		cone_mesh.height = 2.5
+		cone_mesh.radial_segments = 7 # Low poly, odd number looks deeper
+		cone_mesh.rings = 1
 		
-		# Create basis from direction vectors
-		var basis = Basis(right, direction, forward)
-		mesh_inst.basis = basis
+		cone.mesh = cone_mesh
+		cone.position.y = current_y + (cone_mesh.height / 2.0) - 0.5 # Overlap
+		cone.material_override = foliage_mat
+		
+		tree_root.add_child(cone)
+		
+		# Move up and shrink for next tier
+		current_y += 1.2
+		current_radius *= 0.65
 	
-	return mesh_inst
+	return tree_root
