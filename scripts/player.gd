@@ -20,7 +20,17 @@ func _ready():
 	
 	game_manager = get_node_or_null("/root/Game/GameManager")
 	
+	_setup_trail()
 	setup_visuals()
+
+func _setup_trail():
+	var trail_script = load("res://scripts/trail_renderer.gd")
+	if trail_script:
+		# Use CPUParticles3D for the particle trail
+		var trail = CPUParticles3D.new()
+		trail.name = "LightTrail"
+		trail.set_script(trail_script)
+		add_child(trail)
 
 func setup_visuals():
 	# 1. Structure: Player -> CarVisuals -> MeshInstance
