@@ -2,7 +2,7 @@ extends Node3D
 
 @export var obstacle_scene: PackedScene
 @export var spawn_interval: float = 2.0
-@export var speed: float = 18.8  # Reduced 5% (was 19.8)
+@export var speed: float = 17.0  # Reduced 10% (was 18.8)
 
 var spawn_timer: float = 0.0
 var spawn_count: int = 0

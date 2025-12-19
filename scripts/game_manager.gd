@@ -94,10 +94,56 @@ uniform float emission_energy = 1.0;
 uniform float roughness : hint_range(0,1) = 0.5;
 uniform float alpha_scissor_threshold : hint_range(0,1) = 0.0;
 
+varying float v_world_z;
+
 void vertex() {
    // Winding Road Effect (Gentle Sine Wave)
    // Based on World Z position and Time
    // IMPORTANT: All objects must use this same logic to align visually!
+   float z = (MODEL_MATRIX * vec4(VERTEX, 1.0)).z;
+   v_world_z = z;
+   float offset = sin(z * 0.02 - TIME * 0.5) * 1.25; 
+   VERTEX.x += offset;
+}
+
+void fragment() {
+	vec4 albedo_tex = albedo;
+	
+	// Distance Fade Logic (Z: -120 -> -90)
+	// We calculate a fade factor based on world Z
+	float fade_start = -120.0;
+	float fade_end = -90.0;
+	float fade = clamp((v_world_z - fade_start) / (fade_end - fade_start), 0.0, 1.0);
+	
+	ALBEDO = albedo_tex.rgb;
+	ALPHA = albedo_tex.a * fade;
+	ROUGHNESS = roughness;
+	EMISSION = emission.rgb * emission_energy * fade; // Also fade emission
+}
+"""
+	_winding_shader = Shader.new()
+	_winding_shader.code = shader_code
+	return _winding_shader
+
+var _opaque_winding_shader: Shader
+
+func get_opaque_winding_shader() -> Shader:
+	if _opaque_winding_shader:
+		return _opaque_winding_shader
+		
+	var shader_code = """
+shader_type spatial;
+render_mode blend_mix,depth_draw_opaque,cull_back,diffuse_burley,specular_schlick_ggx;
+
+uniform vec4 albedo : source_color = vec4(1.0);
+uniform vec4 emission : source_color = vec4(0.0);
+uniform float emission_energy = 1.0;
+uniform float roughness : hint_range(0,1) = 0.5;
+
+void vertex() {
+   // Winding Road Effect (Gentle Sine Wave)
+   // Based on World Z position and Time
+   // COMPATIBILITY: Must match transparent shader logic!
    float z = (MODEL_MATRIX * vec4(VERTEX, 1.0)).z;
    float offset = sin(z * 0.02 - TIME * 0.5) * 1.25; 
    VERTEX.x += offset;
@@ -106,17 +152,18 @@ void vertex() {
 void fragment() {
 	vec4 albedo_tex = albedo;
 	ALBEDO = albedo_tex.rgb;
-	ALPHA = albedo_tex.a;
+	// No ALPHA assignment -> Opaque pipeline
 	ROUGHNESS = roughness;
 	EMISSION = emission.rgb * emission_energy;
 }
 """
-	_winding_shader = Shader.new()
-	_winding_shader.code = shader_code
-	return _winding_shader
+	_opaque_winding_shader = Shader.new()
+	_opaque_winding_shader.code = shader_code
+	return _opaque_winding_shader
 
 func setup_road():
-	var shader = get_winding_shader()
+	# Use OPAQUE shader for ground/road to ensure correct depth sorting
+	var shader = get_opaque_winding_shader()
 	
 	var road_nodes = ["/root/Game/Road", "/root/Game/GroundLeft", "/root/Game/GroundRight"]
 	for node_path in road_nodes:
@@ -155,6 +202,12 @@ func setup_road():
 			
 			# If the mesh is an ArrayMesh (imported), we can't easily subdivide it via script.
 			# But if it's a built-in primitive (common for prototype), this fixes the "straight road on curved path" issue.
+
+	# 5. Camera Setup (Fit Screen)
+	var cam = get_viewport().get_camera_3d()
+	if cam:
+		cam.keep_aspect = Camera3D.KEEP_WIDTH
+		# Optional: Adjust FOV if needed, but KEEP_WIDTH ensures lanes stay visible on tall phones.
 
 
 

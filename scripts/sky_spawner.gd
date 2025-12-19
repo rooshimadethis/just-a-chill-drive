@@ -58,7 +58,7 @@ func _process(delta):
 		elif z > 20: 
 			alpha = 0.0 # Force kill
 			
-		_set_alpha_recursive(node, alpha)
+		_update_alpha(node, alpha)
 		
 		if z > 50:
 			node.queue_free()
@@ -127,9 +127,9 @@ func _create_star_cluster() -> Node3D:
 			randf_range(-10, 10),
 			randf_range(-20, 20)
 		)
-		mesh_inst.set_surface_override_material(0, local_mat)
 		container.add_child(mesh_inst)
-	return container
+		
+	return _merge_meshes_in_container(container, local_mat)
 
 func _create_cloud() -> Node3D:
 	var container = Node3D.new()
@@ -153,24 +153,37 @@ func _create_cloud() -> Node3D:
 			randf_range(-2, 2),
 			randf_range(-3, 3)
 		)
-		
-		mesh_inst.set_surface_override_material(0, local_mat)
 		container.add_child(mesh_inst)
-	return container
+		
+	return _merge_meshes_in_container(container, local_mat)
 
-# ... (Constellation logic remains fine as it was already unique) ...
-
-func _set_alpha_recursive(node: Node, alpha: float):
-	for child in node.get_children():
+func _merge_meshes_in_container(container: Node3D, material: Material) -> MeshInstance3D:
+	var st = SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	
+	for child in container.get_children():
 		if child is MeshInstance3D:
-			var mat = child.get_surface_override_material(0)
-			if mat:
-				# Check if it's a cloud material (based on properties) to apply generic factor
-				# Clouds are very transparent by default (0.1), so max alpha is 0.15
-				if mat.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA and mat.blend_mode == BaseMaterial3D.BLEND_MODE_ADD and mat.emission_enabled == false:
-					mat.albedo_color.a = alpha * 0.15 
-				else:
-					mat.albedo_color.a = alpha
+			st.append_from(child.mesh, 0, child.transform)
+			child.queue_free()
+	
+	container.queue_free()
+	
+	var merged_mesh = st.commit()
+	var final_instance = MeshInstance3D.new()
+	final_instance.mesh = merged_mesh
+	final_instance.set_surface_override_material(0, material)
+	return final_instance
+
+func _update_alpha(node: Node, alpha: float):
+	if node is MeshInstance3D:
+		var mat = node.get_surface_override_material(0)
+		if mat:
+			# Check if it's a cloud material (based on properties) to apply generic factor
+			# Clouds are very transparent by default (0.1), so max alpha is 0.15
+			if mat.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA and mat.blend_mode == BaseMaterial3D.BLEND_MODE_ADD and mat.emission_enabled == false:
+				mat.albedo_color.a = alpha * 0.15 
+			else:
+				mat.albedo_color.a = alpha
 
 func _create_constellation() -> Node3D:
 	var container = Node3D.new()
@@ -186,7 +199,8 @@ func _create_constellation() -> Node3D:
 	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	
 	_recursive_star(container, Vector3.ZERO, 1.2, max_depth, mat)
-	return container
+	
+	return _merge_meshes_in_container(container, mat)
 
 func _recursive_star(container: Node3D, pos: Vector3, size: float, depth: int, mat: StandardMaterial3D):
 	var mesh_inst = MeshInstance3D.new()
@@ -197,7 +211,8 @@ func _recursive_star(container: Node3D, pos: Vector3, size: float, depth: int, m
 	sphere.rings = 4
 	mesh_inst.mesh = sphere
 	mesh_inst.position = pos
-	mesh_inst.set_surface_override_material(0, mat)
+	# Note: We don't need to set material here as we set it on the merged mesh
+	# But append_from takes mesh geometry, not material.
 	container.add_child(mesh_inst)
 	
 	if depth <= 0: return
@@ -223,7 +238,7 @@ func _create_line(p1: Vector3, p2: Vector3, thickness: float, mat: StandardMater
 	cylinder.radial_segments = 4
 	
 	mesh_inst.mesh = cylinder
-	mesh_inst.set_surface_override_material(0, mat)
+	# Reuse material not needed for merge, but consistent API
 	mesh_inst.position = (p1 + p2) / 2.0
 	
 	if height > 0.001:

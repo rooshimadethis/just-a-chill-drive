@@ -34,18 +34,24 @@ func setup_visuals():
 	remove_child(mesh_instance)
 	car_visuals.add_child(mesh_instance)
 	
-	# 2. Soften Geometry (Capsule Mesh)
-	var capsule = CapsuleMesh.new()
-	capsule.radius = 0.45 # Reduced 10% (was 0.5)
-	capsule.height = 1.8 # Reduced 10% (was 2.0)
-	mesh_instance.mesh = capsule
-	# Lay it flat (rotate 90 degrees on X to align with Z-axis/forward)
-	mesh_instance.rotation_degrees.x = -90 
+	# 2. Car Body (Rectangular Prism)
+	var box = BoxMesh.new()
+	box.size = Vector3(1.1, 0.6, 2.4) # Width, Height, Length
+	# Subdivision for shader bending
+	box.subdivide_width = 4
+	box.subdivide_height = 2
+	box.subdivide_depth = 8
+	
+	mesh_instance.mesh = box
+	
+	# Reset transforms (Box matches world axes)
+	mesh_instance.rotation = Vector3.ZERO
+	mesh_instance.scale = Vector3.ONE 
 	
 	# Soft Plastic Material
 	var mat
-	if game_manager and game_manager.has_method("get_winding_shader"):
-		var shader = game_manager.get_winding_shader()
+	if game_manager and game_manager.has_method("get_opaque_winding_shader"):
+		var shader = game_manager.get_opaque_winding_shader()
 		mat = ShaderMaterial.new()
 		mat.shader = shader
 		mat.set_shader_parameter("albedo", Color(0.8, 0.2, 0.4)) # Nice car color - "Soft Plastic"
