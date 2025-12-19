@@ -67,9 +67,9 @@ func _apply_multi_color_materials(node: Node, shader: Shader):
 			mat.set_shader_parameter("albedo", Color(0.65, 0.7, 0.8, 0.6))  # Translucent blue-grey
 			mat.set_shader_parameter("roughness", 0.1)  # Glossy
 		elif "wheel" in mesh_name or "tire" in mesh_name or "rim" in mesh_name:
-			# Wheels: Warm grey (grounded, stable)
-			mat.set_shader_parameter("albedo", Color(0.5, 0.48, 0.45))  # Warm grey
-			mat.set_shader_parameter("roughness", 0.6)
+			# Hide wheels for hovercar effect
+			node.visible = false
+			return
 		elif "light" in mesh_name or "headlight" in mesh_name:
 			# Lights: Soft warm white
 			mat.set_shader_parameter("albedo", Color(0.95, 0.92, 0.85))  # Warm white
