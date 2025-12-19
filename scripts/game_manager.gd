@@ -3,6 +3,7 @@ extends Node
 signal score_updated(new_score)
 
 var harmony_score: int = 0
+var camera_x: float = 0.0  # Track camera's current X position for smooth lerp
 
 func _ready():
 	# Allow time for the scene to fully load
@@ -64,22 +65,32 @@ uniform vec4 emission : source_color = vec4(0.0);
 uniform float emission_energy = 1.0;
 uniform float roughness : hint_range(0,1) = 0.5;
 uniform float alpha_scissor_threshold : hint_range(0,1) = 0.0;
+uniform float curve_strength_forward : hint_range(0,1) = 0.003;
+uniform float curve_strength_side : hint_range(0,1) = 0.001;
 
 global uniform float road_time;
 varying float v_world_z;
 
 void vertex() {
-   // Winding Road Effect
-   // 1. Get World Z for curve calculation
+   // Spherical Planet Curvature + Winding Road Effect
+   // 1. Get World position
    vec3 world_vertex = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
    float z = world_vertex.z;
+   float x = world_vertex.x;
    v_world_z = z;
    
-   // 2. Calculate correct curve offset
-   float offset = sin(z * 0.02 - road_time * 0.5) * 1.25; 
+   // 2. Winding Road Effect (left-right sine wave)
+   float winding_offset = sin(z * 0.02 - road_time * 0.5) * 1.25; 
+   world_vertex.x += winding_offset;
    
-   // 3. Apply offset in WORLD SPACE (to x coordinate)
-   world_vertex.x += offset;
+   // 3. Spherical Planet Curvature
+   // Forward/backward curve (drops down as distance increases)
+   float dist_from_camera = abs(z);
+   world_vertex.y -= dist_from_camera * dist_from_camera * curve_strength_forward;
+   
+   // Left/right curve (drops down based on distance from center)
+   float dist_from_center = abs(world_vertex.x);
+   world_vertex.y -= dist_from_center * dist_from_center * curve_strength_side;
    
    // 4. Transform back to Local Space
    VERTEX = (inverse(MODEL_MATRIX) * vec4(world_vertex, 1.0)).xyz;
@@ -117,16 +128,29 @@ uniform vec4 albedo : source_color = vec4(1.0);
 uniform vec4 emission : source_color = vec4(0.0);
 uniform float emission_energy = 1.0;
 uniform float roughness : hint_range(0,1) = 0.5;
+uniform float curve_strength_forward : hint_range(0,1) = 0.003;
+uniform float curve_strength_side : hint_range(0,1) = 0.001;
 
 global uniform float road_time;
 
 void vertex() {
-   // Winding Road Effect
+   // Spherical Planet Curvature + Winding Road Effect
    vec3 world_vertex = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
    float z = world_vertex.z;
-   float offset = sin(z * 0.02 - road_time * 0.5) * 1.25; 
    
-   world_vertex.x += offset;
+   // Winding Road Effect (left-right sine wave)
+   float winding_offset = sin(z * 0.02 - road_time * 0.5) * 1.25; 
+   world_vertex.x += winding_offset;
+   
+   // Spherical Planet Curvature
+   // Forward/backward curve (drops down as distance increases)
+   float dist_from_camera = abs(z);
+   world_vertex.y -= dist_from_camera * dist_from_camera * curve_strength_forward;
+   
+   // Left/right curve (drops down based on distance from center)
+   float dist_from_center = abs(world_vertex.x);
+   world_vertex.y -= dist_from_center * dist_from_center * curve_strength_side;
+   
    VERTEX = (inverse(MODEL_MATRIX) * vec4(world_vertex, 1.0)).xyz;
 }
 
@@ -155,19 +179,30 @@ uniform vec4 albedo : source_color = vec4(1.0);
 uniform vec4 emission : source_color = vec4(0.0);
 uniform float emission_energy = 1.0;
 uniform float roughness : hint_range(0,1) = 0.5;
+uniform float curve_strength_forward : hint_range(0,1) = 0.003;
+uniform float curve_strength_side : hint_range(0,1) = 0.001;
 
 global uniform float road_time;
 
 void vertex() {
-   // Rigid Winding Road Effect
+   // Rigid Winding Road Effect with Spherical Curvature
    // Get World Origin of object for Z calculation
    vec3 world_origin = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
    float z = world_origin.z;
-   float offset = sin(z * 0.02 - road_time * 0.5) * 1.25; 
+   float winding_offset = sin(z * 0.02 - road_time * 0.5) * 1.25; 
    
    // Apply offset to World Pos
    vec3 world_vertex = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-   world_vertex.x += offset;
+   world_vertex.x += winding_offset;
+   
+   // Spherical Planet Curvature
+   // Forward/backward curve (drops down as distance increases)
+   float dist_from_camera = abs(z);
+   world_vertex.y -= dist_from_camera * dist_from_camera * curve_strength_forward;
+   
+   // Left/right curve (drops down based on distance from center)
+   float dist_from_center = abs(world_vertex.x);
+   world_vertex.y -= dist_from_center * dist_from_center * curve_strength_side;
    
    // Transform back
    VERTEX = (inverse(MODEL_MATRIX) * vec4(world_vertex, 1.0)).xyz;

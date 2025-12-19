@@ -77,7 +77,8 @@ func _create_lane_line() -> MeshInstance3D:
 	var mesh_inst = MeshInstance3D.new()
 	var mesh = BoxMesh.new()
 	mesh.size = Vector3(line_width, 0.02, line_length)  # Thin, flat dash
-	mesh.subdivide_depth = 4 # Allow mesh to bend with the curve shader
+	mesh.subdivide_depth = 8 # Increased subdivision to allow mesh to bend with the curve shader
+	mesh.subdivide_width = 2 # Also subdivide width for side-to-side curvature
 	mesh_inst.mesh = mesh
 	
 	# Use shared material

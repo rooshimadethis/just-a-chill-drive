@@ -18,6 +18,7 @@ func _ready():
 	cyl_mesh.top_radius = 0.3
 	cyl_mesh.bottom_radius = 0.3
 	cyl_mesh.radial_segments = 16
+	cyl_mesh.rings = 12 # Add vertical subdivision for curved world effect
 	
 	if has_node("LeftPillar"):
 		$LeftPillar.mesh = cyl_mesh
