@@ -14,7 +14,7 @@ func _ready():
 	
 	# Create shared CylinderMesh
 	var cyl_mesh = CylinderMesh.new()
-	cyl_mesh.height = 4.0 # Taller to account for scale/embed
+	cyl_mesh.height = 2.8 # 30% shorter (was 4.0)
 	cyl_mesh.top_radius = 0.3
 	cyl_mesh.bottom_radius = 0.3
 	cyl_mesh.radial_segments = 16
@@ -23,25 +23,24 @@ func _ready():
 	if has_node("LeftPillar"):
 		$LeftPillar.mesh = cyl_mesh
 		$LeftPillar.position.x = -half_width
+		$LeftPillar.position.y = -0.6  # Lower to ground (half of height reduction: 1.2 / 2)
 		$LeftPillar.scale = Vector3(0.8, 0.8, 0.8) # 20% smaller pillars
 	if has_node("RightPillar"):
 		$RightPillar.mesh = cyl_mesh
 		$RightPillar.position.x = half_width
+		$RightPillar.position.y = -0.6  # Lower to ground
 		$RightPillar.scale = Vector3(0.8, 0.8, 0.8)
 	
-	# Adjust Trigger Size to match new width
+	# Adjust Trigger Size to match new width and height
 	if has_node("CollisionShape3D"):
-		# Assuming box shape, need to resize.
-		# But since shape is shared resource usually, changing it affects all instances if not made unique.
-		# However, in _ready we can make it unique or just assume it handles it.
-		# Let's check if we can resize the shape.
 		var shape = $CollisionShape3D.shape
 		if shape is BoxShape3D:
-			# Make unique to avoid affecting other gates if it was shared? 
-			# In Godot resources are shared by default but duplicates usually copy? 
-			# Safer to duplicate if we modify.
+			# Make unique to avoid affecting other gates if it was shared
 			$CollisionShape3D.shape = shape.duplicate()
-			$CollisionShape3D.shape.size.x = half_width * 2.0
+			$CollisionShape3D.shape.size.x = half_width * 2.0  # 4.0 units wide
+			$CollisionShape3D.shape.size.y = 2.8  # Match pillar height
+		# Position at origin since gate is now spawned at correct height
+		$CollisionShape3D.position.y = 0.0
 	
 	# 2. Add Top Bar (Make it a Gate) --> REMOVED
 	# var top_bar = MeshInstance3D.new() ...

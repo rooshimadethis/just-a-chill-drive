@@ -93,6 +93,40 @@ func _apply_material_recursive(node: Node, material: Material):
 	p_mat.emission_energy_multiplier = 2.0
 	fireflies.material_override = p_mat
 	fireflies.emitting = false
+	
+	# 4. Headlights (Two SpotLights) - need to be added after car is loaded
+	# Store reference to car node for headlights
+	if car_visuals.get_child_count() > 0:
+		var car_node = car_visuals.get_child(0)
+		_add_headlights(car_node)
+
+func _add_headlights(car_node: Node3D):
+	# Left headlight - attached to car node so it moves with the car
+	var left_light = SpotLight3D.new()
+	left_light.name = "LeftHeadlight"
+	car_node.add_child(left_light)
+	left_light.position = Vector3(-0.4, 0.5, 1.0)  # Front left of car (adjusted for car's local space)
+	left_light.rotation_degrees = Vector3(0, 180, 0)  # Point forward in car's local space
+	left_light.light_color = Color(1.0, 0.95, 0.85)  # Warm white
+	left_light.light_energy = 1.5
+	left_light.spot_range = 20.0
+	left_light.spot_angle = 45.0
+	left_light.spot_attenuation = 2.0
+	left_light.shadow_enabled = true
+	
+	# Right headlight
+	var right_light = SpotLight3D.new()
+	right_light.name = "RightHeadlight"
+	car_node.add_child(right_light)
+	right_light.position = Vector3(0.4, 0.5, 1.0)  # Front right of car (adjusted for car's local space)
+	right_light.rotation_degrees = Vector3(0, 180, 0)  # Point forward in car's local space
+	right_light.light_color = Color(1.0, 0.95, 0.85)  # Warm white
+	right_light.light_energy = 1.5
+	right_light.spot_range = 20.0
+	right_light.spot_angle = 45.0
+	right_light.spot_attenuation = 2.0
+	right_light.shadow_enabled = true
+
 
 func _input(event):
 	# Handle Touch and Mouse input for smooth following

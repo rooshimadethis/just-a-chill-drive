@@ -5,6 +5,8 @@ extends Node3D
 @export var star_spread_x: float = 80.0
 @export var star_height_min: float = 15.0
 @export var star_height_max: float = 60.0
+@export var constellation_height_min: float = 40.0  # Constellations higher up
+@export var constellation_height_max: float = 80.0
 @export var max_depth: int = 3
 
 var spawn_timer: float = 0.0
@@ -100,7 +102,7 @@ func _spawn_sky_element_at(z_pos: float):
 		var constellation = _create_constellation()
 		constellation.position = Vector3(
 			randf_range(-star_spread_x, star_spread_x),
-			randf_range(star_height_min, star_height_max),
+			randf_range(constellation_height_min, constellation_height_max),  # Higher up
 			z_pos
 		)
 		add_child(constellation)
@@ -117,15 +119,16 @@ func _create_star_cluster() -> Node3D:
 	for i in range(count):
 		var mesh_inst = MeshInstance3D.new()
 		var sphere = SphereMesh.new()
-		sphere.radius = randf_range(0.05, 0.15)
+		sphere.radius = randf_range(0.15, 0.35)  # Bigger background stars
 		sphere.height = sphere.radius * 2
 		sphere.radial_segments = 6 # Low poly stars
 		sphere.rings = 3
 		mesh_inst.mesh = sphere
+		# Spread stars across the whole sky instead of clustering
 		mesh_inst.position = Vector3(
-			randf_range(-20, 20),
-			randf_range(-10, 10),
-			randf_range(-20, 20)
+			randf_range(-star_spread_x * 2, star_spread_x * 2),
+			randf_range(star_height_min, star_height_max),
+			randf_range(-100, 100)
 		)
 		container.add_child(mesh_inst)
 		
@@ -220,7 +223,7 @@ func _recursive_star(container: Node3D, pos: Vector3, size: float, depth: int, m
 	var branches = randi_range(2, 3)
 	for i in range(branches):
 		var dir = Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-0.5, 0.5)).normalized()
-		var len = size * randf_range(2.0, 3.5)
+		var len = size * randf_range(4.0, 6.0)  # Spread farther apart
 		var next_pos = pos + (dir * len)
 		
 		var line = _create_line(pos, next_pos, size * 0.05, mat)

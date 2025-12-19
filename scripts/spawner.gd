@@ -42,7 +42,9 @@ func spawn_gate():
 	var lane_x = lanes[chosen_index]
 	
 	# Spawn far away in the chosen lane
-	gate.position = Vector3(lane_x, 0, -120)
+	# Y = 1.4 positions the base of the pillars at ground level
+	# (pillar height is 2.8, half = 1.4, and pillar offset is -0.6, so 1.4 - 0.6 = 0.8 above origin)
+	gate.position = Vector3(lane_x, 1.4, -120)
 	
 	# Configure gate properties
 	if gate.has_method("set_speed"):
