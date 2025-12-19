@@ -45,11 +45,12 @@ func spawn_forest_row():
 		return
 
 	# Spawn multiple layers of trees to create depth (Forest effect)
-	var layers = [12.0, 22.0, 34.0]
+	# Removed closest layer (12.0) to keep road clear
+	var layers = [22.0, 34.0]
 	
 	for base_dist in layers:
-		# Inner layer always spawns, outer layers have a chance to skip for organic density
-		if base_dist == 12.0 or randf() > 0.3:
+		# Outer layers have a chance to skip for organic density
+		if randf() > 0.3:
 			_spawn_single_tree(-base_dist)
 			_spawn_single_tree(base_dist)
 
