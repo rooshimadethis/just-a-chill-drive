@@ -52,17 +52,28 @@ func _initialize_material():
 	lane_material.set_shader_parameter("emission", Color(0.7, 0.8, 0.9))
 	lane_material.set_shader_parameter("emission_energy", 0.0)  # No glow on lane lines
 
+var current_mode_gold: bool = false
+
 func _process(delta):
 	# Update Shared Material based on Harmony (ONCE per frame)
 	var harmony = 0
 	if game_manager:
 		harmony = game_manager.harmony_score
 	
-	# Only update material if harmony changed significantly
-	if harmony >= 10:
-		# Gold
-		lane_material.set_shader_parameter("albedo", Color(1.0, 0.85, 0.3))
-		lane_material.set_shader_parameter("emission", Color(1.0, 0.8, 0.1))
+	var should_be_gold = (harmony >= 10)
+	
+	if should_be_gold != current_mode_gold:
+		current_mode_gold = should_be_gold
+		
+		# Update only on state change
+		if current_mode_gold:
+			# Gold
+			lane_material.set_shader_parameter("albedo", Color(1.0, 0.85, 0.3))
+			lane_material.set_shader_parameter("emission", Color(1.0, 0.8, 0.1))
+		else:
+			# Default White/Blue
+			lane_material.set_shader_parameter("albedo", Color(0.9, 0.9, 0.95))
+			lane_material.set_shader_parameter("emission", Color(0.7, 0.8, 0.9))
 
 	# Move existing lane lines (iterate backwards to safely remove)
 	for i in range(lane_lines.size() - 1, -1, -1):

@@ -43,30 +43,50 @@ func setup_visuals():
 		# Adjust position to center it
 		car_node.position.y = -0.3 # Lower it slightly if wheels float
 		
-		# Create Winding Shader Material
-		var mat
+		# Create Winding Shader Materials with calming colors
 		if game_manager and game_manager.has_method("get_rigid_winding_shader"):
 			var shader = game_manager.get_rigid_winding_shader()
-			mat = ShaderMaterial.new()
-			mat.shader = shader
-			mat.set_shader_parameter("albedo", Color(0.8, 0.2, 0.4)) # Keep signature pink/red color
-			mat.set_shader_parameter("roughness", 0.4) # Shinier car
-		
-		if mat:
-			_apply_material_recursive(car_node, mat)
+			_apply_multi_color_materials(car_node, shader)
 	else:
 		print("Failed to load car model, fallback to box not implemented.")
 
-func _apply_material_recursive(node: Node, material: Material):
+func _apply_multi_color_materials(node: Node, shader: Shader):
+	"""Apply different calming colors to different car components"""
 	if node is MeshInstance3D:
+		var mesh_name = node.name.to_lower()
+		var mat = ShaderMaterial.new()
+		mat.shader = shader
+		
+		# Assign colors based on component type - all soft, restorative colors
+		if "body" in mesh_name or "chassis" in mesh_name or "hood" in mesh_name or "door" in mesh_name:
+			# Main body: Soft sage green (calming, natural)
+			mat.set_shader_parameter("albedo", Color(0.6, 0.75, 0.65))  # Sage green
+			mat.set_shader_parameter("roughness", 0.3)
+		elif "window" in mesh_name or "glass" in mesh_name or "windshield" in mesh_name:
+			# Windows: Soft blue-grey (sky-like, peaceful)
+			mat.set_shader_parameter("albedo", Color(0.65, 0.7, 0.8, 0.6))  # Translucent blue-grey
+			mat.set_shader_parameter("roughness", 0.1)  # Glossy
+		elif "wheel" in mesh_name or "tire" in mesh_name or "rim" in mesh_name:
+			# Wheels: Warm grey (grounded, stable)
+			mat.set_shader_parameter("albedo", Color(0.5, 0.48, 0.45))  # Warm grey
+			mat.set_shader_parameter("roughness", 0.6)
+		elif "light" in mesh_name or "headlight" in mesh_name:
+			# Lights: Soft warm white
+			mat.set_shader_parameter("albedo", Color(0.95, 0.92, 0.85))  # Warm white
+			mat.set_shader_parameter("roughness", 0.2)
+		else:
+			# Default for other parts: Soft teal (calming water-like color)
+			mat.set_shader_parameter("albedo", Color(0.55, 0.7, 0.7))  # Soft teal
+			mat.set_shader_parameter("roughness", 0.4)
+		
 		# Apply to all surfaces
 		for i in range(node.mesh.get_surface_count()):
-			node.set_surface_override_material(i, material)
+			node.set_surface_override_material(i, mat)
 			# Important: Expand cull margin so the car doesn't disappear when curving off-screen
 			node.extra_cull_margin = 16384.0
 			
 	for child in node.get_children():
-		_apply_material_recursive(child, material)
+		_apply_multi_color_materials(child, shader)
 	
 	# 3. Fireflies (Particle System)
 	fireflies = CPUParticles3D.new()

@@ -169,16 +169,32 @@ func start_chord_generation(voice_index: int, chord: Array):
 	state["freqs"] = chord
 	state["frame_index"] = 0
 	
+	# Pre-calculate frequency increments to avoid division in the sample loop
+	state["increments"] = []
+	for freq in chord:
+		state["increments"].append(freq / sample_hz)
+	
 	# 60 BPM = 1 beat per second
 	# Hold each chord for 4 beats (4 seconds) for slow harmonic rhythm
 	var duration = 4.0
 	state["total_frames"] = int(sample_hz * duration)
 	
 	# ADSR parameters optimized for restorative music
-	state["attack_frames"] = int(sample_hz * 0.8)    # 800ms - very slow swell
-	state["decay_frames"] = int(sample_hz * 0.3)     # 300ms decay
-	state["sustain_level"] = 0.7                      # 70% sustain - present but gentle
-	state["release_frames"] = int(sample_hz * 1.0)   # 1000ms - long, peaceful fade
+	var attack = int(sample_hz * 0.8)    # 800ms - very slow swell
+	var decay = int(sample_hz * 0.3)     # 300ms decay
+	var sustain = 0.7                      # 70% sustain - present but gentle
+	var release = int(sample_hz * 1.0)   # 1000ms - long, peaceful fade
+	
+	state["attack_frames"] = attack
+	state["decay_frames"] = decay
+	state["sustain_level"] = sustain
+	state["release_frames"] = release
+	
+	# Pre-calculate reciprocals for envelope generation (Divisions are expensive in loops)
+	state["inv_attack"] = 1.0 / float(attack) if attack > 0 else 0.0
+	state["inv_decay"] = 1.0 / float(decay) if decay > 0 else 0.0
+	state["inv_release"] = 1.0 / float(release) if release > 0 else 0.0
+	state["release_start_frame"] = state["total_frames"] - release
 	
 	# Reset phases to zero to prevent discontinuity
 	state["phases"] = []
@@ -200,58 +216,59 @@ func generate_chord_frames(voice_index: int):
 	# Generate frames in small batches to prevent buffer overflow
 	var frames_to_generate = min(frames_available, 512)
 	
+	# Cache values locally for faster access in loop
+	var frame_idx = state["frame_index"]
+	var total = state["total_frames"]
+	var attack = state["attack_frames"]
+	var decay_end = attack + state["decay_frames"]
+	var release_start = state["release_start_frame"]
+	var sustain = state["sustain_level"]
+	var inv_attack = state["inv_attack"]
+	var inv_decay = state["inv_decay"]
+	var inv_release = state["inv_release"]
+	var increments = state["increments"]
+	var phases = state["phases"]
+	var num_notes_float_inv = 1.0 / float(state["freqs"].size()) # Multiplication is faster than division
+	
 	for i in range(frames_to_generate):
-		if state["frame_index"] >= state["total_frames"]:
+		if frame_idx >= total:
 			state["is_generating"] = false
+			state["frame_index"] = frame_idx # Save state before exit
 			return
 		
-		var envelope = calculate_envelope(
-			state["frame_index"], 
-			state["total_frames"], 
-			state["attack_frames"], 
-			state["decay_frames"], 
-			state["sustain_level"], 
-			state["release_frames"]
-		)
+		# Inline Envelope Calculation for performance
+		var envelope = 0.0
+		if frame_idx < attack:
+			envelope = float(frame_idx) * inv_attack
+		elif frame_idx < decay_end:
+			var decay_progress = float(frame_idx - attack) * inv_decay
+			envelope = 1.0 - (1.0 - sustain) * decay_progress
+		elif frame_idx < release_start:
+			envelope = sustain
+		else:
+			var release_progress = float(frame_idx - release_start) * inv_release
+			envelope = sustain * (1.0 - release_progress)
 		
-		# Mix all notes in the chord with equal weighting
+		# Mix all notes
 		var mixed_sample = 0.0
-		var num_notes = state["freqs"].size()
+		var note_count = increments.size()
 		
-		for note_idx in range(num_notes):
-			var freq = state["freqs"][note_idx]
-			var increment = freq / sample_hz
-			
+		for note_idx in range(note_count):
 			# Use sine wave for pure, pad-like tone
-			var note_sample = sin(state["phases"][note_idx] * TAU)
-			
-			mixed_sample += note_sample / float(num_notes)  # Equal mix
-			state["phases"][note_idx] = fmod(state["phases"][note_idx] + increment, 1.0)
+			var note_sample = sin(phases[note_idx] * TAU)
+			mixed_sample += note_sample
+			phases[note_idx] = fmod(phases[note_idx] + increments[note_idx], 1.0)
 		
-		# Apply envelope and overall volume (reduced for polyphonic layering)
-		mixed_sample *= envelope * 0.15  # Reduced from 0.2 for multiple voices
+		# Apply weighting and envelope
+		mixed_sample *= (num_notes_float_inv * envelope * 0.15)
 		
 		# Push stereo frame
 		playback.push_frame(Vector2(mixed_sample, mixed_sample))
 		
-		state["frame_index"] += 1
-
-func calculate_envelope(frame: int, total_frames: int, attack: int, decay: int, sustain: float, release: int) -> float:
-	# ADSR Envelope
-	if frame < attack:
-		# Attack phase: 0.0 -> 1.0
-		return float(frame) / float(attack)
-	elif frame < attack + decay:
-		# Decay phase: 1.0 -> sustain_level
-		var decay_progress = float(frame - attack) / float(decay)
-		return 1.0 - (1.0 - sustain) * decay_progress
-	elif frame < total_frames - release:
-		# Sustain phase: hold at sustain_level
-		return sustain
-	else:
-		# Release phase: sustain_level -> 0.0
-		var release_progress = float(frame - (total_frames - release)) / float(release)
-		return sustain * (1.0 - release_progress)
+		frame_idx += 1
+	
+	# Save updated state
+	state["frame_index"] = frame_idx
 
 func trigger_kick():
 	# Start kick drum generation
