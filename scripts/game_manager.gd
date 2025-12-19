@@ -473,6 +473,27 @@ func setup_road():
 			# If the mesh is an ArrayMesh (imported), we can't easily subdivide it via script.
 			# But if it's a built-in primitive (common for prototype), this fixes the "straight road on curved path" issue.
 
+			# DYNAMIC RESIZING: Make road bigger per user request
+			# Goal: 3 even lanes of width 4.0
+			# Middle Lane: -2 to +2 (Width 4) -> defined by lane_line_spawner (+/- 2.0)
+			# Side Lanes: need to be width 4 also.
+			# Left Lane: -6 to -2. Right Lane: +2 to +6.
+			# Total Road Width needed: 12.0 (-6 to +6)
+			
+			if "Road" in node.name and mesh is PlaneMesh:
+				mesh.size.x = 12.0 
+			
+			if "GroundLeft" in node.name:
+				# Ground is 20 wide (extents +/- 10).
+				# We want right edge at -6.0.
+				# Center must be at -16.0 (-16 + 10 = -6).
+				node.position.x = -16.0 
+			
+			if "GroundRight" in node.name:
+				# We want left edge at +6.0.
+				# Center must be at +16.0 (16 - 10 = 6).
+				node.position.x = 16.0 
+
 	# 5. Camera Setup (Fit Screen)
 	var cam = get_viewport().get_camera_3d()
 	if cam:
