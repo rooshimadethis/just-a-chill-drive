@@ -1,14 +1,14 @@
-extends Node2D
+extends Node3D
 
 @export var obstacle_scene: PackedScene
 @export var spawn_interval: float = 2.0
-@export var speed: float = 400.0
+@export var speed: float = 20.0
 
 var spawn_timer: float = 0.0
-var screen_size: Vector2
+var spawn_count: int = 0
 
 func _ready():
-	screen_size = get_viewport_rect().size
+	pass
 
 func _process(delta):
 	spawn_timer += delta
@@ -20,13 +20,22 @@ func _process(delta):
 func spawn_gate():
 	if not obstacle_scene:
 		return
-		
+	
+	spawn_count += 1
 	var gate = obstacle_scene.instantiate()
 	add_child(gate)
 	
-	# Random X, keeping margins (100px for marker width + buffer)
-	var random_x = randf_range(150, screen_size.x - 150)
-	gate.position = Vector2(random_x, -50)
+	# Random X, approximate road width -4 to 4
+	var random_x = randf_range(-3.0, 3.0)
+	# Spawn far away
+	gate.position = Vector3(random_x, 0, -120)
 	
+	# Configure gate properties
 	if gate.has_method("set_speed"):
 		gate.set_speed(speed)
+	
+	# Every 5th gate is special (Orange)
+	if spawn_count % 5 == 0:
+		if gate.has_method("set_special_color"):
+			gate.set_special_color(Color(1.0, 0.5, 0.0)) # Orange
+
