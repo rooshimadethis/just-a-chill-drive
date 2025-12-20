@@ -12,6 +12,11 @@ extends Node3D
 var spawn_timer: float = 0.0
 var sky_objects = [] # Stores [node, parallax_factor]
 
+# Storm Mode Settings
+var is_storm_mode: bool = false
+@export var storm_spawn_interval: float = 0.3 # Fast spawn during storm
+@export var normal_spawn_interval: float = 2.0 # Default spawn interval
+
 # Cache materials
 var star_mat: StandardMaterial3D
 var cloud_mat: StandardMaterial3D
@@ -19,10 +24,21 @@ var cloud_mat: StandardMaterial3D
 func _ready():
 	_init_materials()
 	
-	# Pre-spawn heavily to fill the sky
 	for i in range(10):
 		var z_pos = -250.0 + (i * 30.0)
 		_spawn_sky_element_at(z_pos)
+
+func set_storm_mode(enabled: bool):
+	if is_storm_mode == enabled:
+		return
+		
+	is_storm_mode = enabled
+	print("SkySpawner: Storm Mode ", "ON" if enabled else "OFF")
+	
+	if is_storm_mode:
+		spawn_interval = storm_spawn_interval
+	else:
+		spawn_interval = normal_spawn_interval
 
 func _init_materials():
 	# Background Star Material (White, crisp)
@@ -75,38 +91,55 @@ func _process(delta):
 func _spawn_sky_element_at(z_pos: float):
 	var rng = randf()
 	
-	# 40% Chance: Background Star Cluster
-	if rng < 0.4:
-		var stars = _create_star_cluster()
-		stars.position = Vector3(
-			randf_range(-star_spread_x, star_spread_x),
-			randf_range(star_height_min, star_height_max),
-			z_pos
-		)
-		add_child(stars)
-		sky_objects.append([stars, 0.1]) # 0.1 parallax (Very slow/far)
-		
-	# 30% Chance: Fluffy Cloud
-	elif rng < 0.7:
-		var cloud = _create_cloud()
-		cloud.position = Vector3(
-			randf_range(-star_spread_x, star_spread_x),
-			randf_range(star_height_min, star_height_max),
-			z_pos
-		)
-		add_child(cloud)
-		sky_objects.append([cloud, 0.3]) # 0.3 parallax (Slow drifting)
-		
-	# 30% Chance: Fractal Constellation
+
+	
+	if is_storm_mode:
+		# Storm Mode: 90% Clouds, 10% Other
+		if rng < 0.9:
+			_spawn_cloud(z_pos)
+		elif rng < 0.95:
+			_spawn_star_cluster(z_pos)
+		else:
+			_spawn_constellation(z_pos)
+			
 	else:
-		var constellation = _create_constellation()
-		constellation.position = Vector3(
-			randf_range(-star_spread_x, star_spread_x),
-			randf_range(constellation_height_min, constellation_height_max),  # Higher up
-			z_pos
-		)
-		add_child(constellation)
-		sky_objects.append([constellation, 0.5]) # 0.5 parallax (Mid distance)
+		# Normal Mode: 40% Stars, 30% Clouds, 30% Constellations
+		if rng < 0.4:
+			_spawn_star_cluster(z_pos)
+		elif rng < 0.7:
+			_spawn_cloud(z_pos)
+		else:
+			_spawn_constellation(z_pos)
+
+func _spawn_star_cluster(z_pos: float):
+	var stars = _create_star_cluster()
+	stars.position = Vector3(
+		randf_range(-star_spread_x, star_spread_x),
+		randf_range(star_height_min, star_height_max),
+		z_pos
+	)
+	add_child(stars)
+	sky_objects.append([stars, 0.1]) # 0.1 parallax (Very slow/far)
+
+func _spawn_cloud(z_pos: float):
+	var cloud = _create_cloud()
+	cloud.position = Vector3(
+		randf_range(-star_spread_x, star_spread_x),
+		randf_range(star_height_min, star_height_max),
+		z_pos
+	)
+	add_child(cloud)
+	sky_objects.append([cloud, 0.3]) # 0.3 parallax (Slow drifting)
+
+func _spawn_constellation(z_pos: float):
+	var constellation = _create_constellation()
+	constellation.position = Vector3(
+		randf_range(-star_spread_x, star_spread_x),
+		randf_range(constellation_height_min, constellation_height_max),  # Higher up
+		z_pos
+	)
+	add_child(constellation)
+	sky_objects.append([constellation, 0.5]) # 0.5 parallax (Mid distance)
 
 # --- Creators ---
 
@@ -258,5 +291,3 @@ func _create_line(p1: Vector3, p2: Vector3, thickness: float, mat: StandardMater
 		mesh_inst.basis = Basis(right, direction, forward)
 		
 	return mesh_inst
-
-

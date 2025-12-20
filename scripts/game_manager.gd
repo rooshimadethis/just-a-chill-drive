@@ -3,6 +3,7 @@ extends Node
 signal score_updated(new_score)
 signal beat_occurred(beat_number: int)  # Emitted on every beat
 signal bar_occurred(bar_number: int)    # Emitted every 4 beats
+signal visual_echo_triggered()          # Emitted every 3 minutes
 
 var harmony_score: int = 0
 var camera_x: float = 0.0  # Track camera's current X position for smooth lerp
@@ -12,6 +13,14 @@ var audio_system: Node
 var last_camera_update_x: float = 0.0
 var camera_update_threshold: float = 0.01  # Only update if change > 0.01 units
 var camera_tilt: float = 0.0 # Track camera roll
+
+# Echo Timer
+const ECHO_INTERVAL: float = 180.0 # 3 minutes
+var last_echo_time: float = 0.0
+
+# Effect Coordination
+var is_rain_active: bool = false
+var is_mandala_active: bool = false
 
 
 # ===== CURVE CONSTANTS =====
@@ -64,6 +73,12 @@ func _process(delta):
 		# Emit bar signal every 4 beats
 		if current_beat % 4 == 0:
 			bar_occurred.emit(current_bar)
+			
+	# ===== VISUAL ECHO TIMER =====
+	# Runs every 3 minutes (180 seconds)
+	if metronome_time - last_echo_time >= ECHO_INTERVAL:
+		last_echo_time = metronome_time
+		visual_echo_triggered.emit()
 	
 	# ===== CAMERA FOLLOWING LOGIC =====
 	# Camera Following Logic - follows both road curve and player position
@@ -206,6 +221,21 @@ func setup_environment():
 	
 	# 4. Road Winding Shader
 	setup_road()
+	
+	# 5. Visual Echo Layer
+	var echo_script = load("res://scripts/visual_echo_layer.gd")
+	if echo_script:
+		var echo_layer = echo_script.new()
+		echo_layer.name = "VisualEchoLayer"
+		
+		# Try adding to the tree root instead
+		get_tree().root.add_child(echo_layer)
+		
+		print("GameManager: VisualEchoLayer added to tree root")
+		print("GameManager: Echo layer parent: ", echo_layer.get_parent().name)
+		print("GameManager: Echo layer in tree: ", echo_layer.is_inside_tree())
+	else:
+		print("GameManager: ERROR - Failed to load visual_echo_layer.gd")
 
 var _winding_shader: Shader
 

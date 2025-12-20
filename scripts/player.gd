@@ -4,6 +4,8 @@ extends Area3D
 @export var speed_damping: float = 10.0
 @export var sway_amount: float = 0.2 # Reduced for 3D
 @export var max_x: float = 4.0 # World units for road width
+@export var debug_always_echo: bool = false # Add debug toggle
+
 
 # State
 var target_x: float = 0.0
@@ -13,15 +15,25 @@ var mesh_instance: MeshInstance3D
 var fireflies: CPUParticles3D
 var game_manager: Node
 
+# Echo Effect State
+# Remvoed - moved to Global VisualEchoLayer
+
+
+
 func _ready():
 	screen_size = get_viewport().get_visible_rect().size
 	target_x = 0.0 # Center
 	position = Vector3(0, 0, 0)
 	
 	game_manager = get_node_or_null("/root/Game/GameManager")
+	# game_manager echo signal no longer needed here
+
 	
 	_setup_trail()
 	setup_visuals()
+
+
+
 
 func _setup_trail():
 	var trail_script = load("res://scripts/trail_renderer.gd")
@@ -187,6 +199,9 @@ func _process(delta):
 			car_visuals.position.x = curve.x
 			car_visuals.position.y = curve.y # This applies the vertical drop from curvature
 	
+
+
+
 	# Check Harmony for Fireflies
 	if game_manager and game_manager.harmony_score >= 20:
 		if not fireflies.emitting:

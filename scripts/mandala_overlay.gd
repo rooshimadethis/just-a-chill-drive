@@ -101,6 +101,12 @@ func _process(delta):
 			if current_opacity <= 0.0:
 				current_opacity = 0.0
 				is_fading_out = false
+				
+				# Notify GameManager
+				var gm = get_node_or_null("/root/Game/GameManager")
+				if gm:
+					gm.is_mandala_active = false
+					
 				_schedule_next_activation()
 	
 	# Only update shader if opacity changed
@@ -108,6 +114,17 @@ func _process(delta):
 		mandala_material.set_shader_parameter("opacity", current_opacity)
 
 func _start_effect():
+	# Check for conflicts with Rain
+	var gm = get_node_or_null("/root/Game/GameManager")
+	if gm:
+		if gm.is_rain_active:
+			# Conflict! Reschedule
+			print("MandalaOverlay: Conflict with Rain! Rescheduling...")
+			time_until_next_activation = min_wait_time * 0.5
+			return
+			
+		gm.is_mandala_active = true
+
 	is_fading_in = true
 	target_opacity = 1.0
 

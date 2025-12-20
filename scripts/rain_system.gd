@@ -6,7 +6,7 @@ class_name RainSystem
 @export var rain_color: Color = Color(0.6, 0.7, 1.0, 0.6)
 @export var min_wait_time: float = 90.0
 @export var max_wait_time: float = 150.0
-@export var effect_duration: float = 45.0
+@export var effect_duration: float = 20.0
 @export var fade_duration: float = 5.0
 
 # Components
@@ -38,6 +38,11 @@ func _process(delta):
 		
 	elif is_raining:
 		timer -= delta
+		
+		# Return clouds to normal 5 seconds before rain stops
+		if timer <= 5.0 and is_storm_clouds_active:
+			_set_sky_storm_mode(false)
+			
 		if timer <= 0.0:
 			is_raining = false
 			is_fading_out = true
@@ -48,13 +53,32 @@ func _process(delta):
 			current_alpha = 0.0
 			is_fading_out = false
 			particles.emitting = false
+			
+			# Notify GameManager that rain has stopped
+			var gm = get_node_or_null("/root/Game/GameManager")
+			if gm:
+				gm.is_rain_active = false
+				
 			_schedule_next()
 		_update_alpha(current_alpha)
 		
 	else:
 		time_until_next -= delta
+		
+		# Ramp up clouds 10 seconds BEFORE rain starts
+		if time_until_next <= 10.0 and not is_storm_clouds_active:
+			_set_sky_storm_mode(true)
+			
 		if time_until_next <= 0.0:
 			_start_rain()
+
+var is_storm_clouds_active: bool = false
+
+func _set_sky_storm_mode(enabled: bool):
+	is_storm_clouds_active = enabled
+	var sky = get_node_or_null("/root/Game/SkySpawner")
+	if sky and sky.has_method("set_storm_mode"):
+		sky.set_storm_mode(enabled)
 
 func _create_particles():
 	particles = GPUParticles3D.new()
@@ -98,6 +122,23 @@ func _create_particles():
 	particles.emitting = false # Wait for trigger
 
 func _start_rain():
+	# Check for conflicts with Mandala effect
+	var gm = get_node_or_null("/root/Game/GameManager")
+	if gm:
+		if gm.is_mandala_active:
+			# Conflict detected! Reschedule for sooner (half the wait time)
+			print("RainSystem: Conflict with Mandala! Rescheduling...")
+			time_until_next = min_wait_time * 0.5
+			
+			# Reset clouds if they were triggered
+			if is_storm_clouds_active:
+				_set_sky_storm_mode(false)
+				
+			return
+			
+		# No conflict, claim the state
+		gm.is_rain_active = true
+		
 	print("RainSystem: Starting rain")
 	particles.emitting = true
 	is_fading_in = true
