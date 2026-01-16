@@ -425,12 +425,14 @@ uniform float curve_strength_forward : hint_range(0,1) = 0.003;
 uniform float curve_strength_side : hint_range(0,1) = 0.001;
 
 global uniform float road_time;
+varying float v_world_z;
 
 void vertex() {
    // Rigid Winding Road Effect with Spherical Curvature
    // Get World Origin of object for Z calculation
    vec3 world_origin = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
    float z = world_origin.z;
+   v_world_z = z;
    float winding_offset = sin(z * 0.02 - road_time * 0.5) * 1.25; 
    
    // Apply offset to World Pos
@@ -452,9 +454,16 @@ void vertex() {
 
 void fragment() {
 	vec4 albedo_tex = albedo;
+	
+	// Distance Fade Logic (Matches road shader)
+	float fade_start = -120.0;
+	float fade_end = -90.0;
+	float fade = clamp((v_world_z - fade_start) / (fade_end - fade_start), 0.0, 1.0);
+	
 	ALBEDO = albedo_tex.rgb;
+	ALPHA = albedo_tex.a * fade;
 	ROUGHNESS = roughness;
-	EMISSION = emission.rgb * emission_energy;
+	EMISSION = emission.rgb * emission_energy * fade;
 }
 """
 	_rigid_winding_shader = Shader.new()

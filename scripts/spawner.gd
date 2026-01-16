@@ -6,6 +6,7 @@ extends Node3D
 var spawn_count: int = 0
 var last_lane_index: int = -1  # Track last lane to avoid consecutive spawns
 var game_manager: Node
+var lane_line_spawner: Node3D
 
 func _ready():
 	# Connect to GameManager's metronome
@@ -13,6 +14,8 @@ func _ready():
 	if game_manager:
 		game_manager.bar_occurred.connect(_on_bar_occurred)
 		print("Gate Spawner: Connected to metronome (spawning every 4 beats)")
+	
+	lane_line_spawner = get_node_or_null("/root/Game/LaneLineSpawner")
 
 func _on_bar_occurred(bar_number: int):
 	# Spawn a gate on every bar (every 4 beats = 4 seconds at 60 BPM)
@@ -26,9 +29,16 @@ func spawn_gate():
 	var gate = obstacle_scene.instantiate()
 	add_child(gate)
 	
-	# Choose one of three lanes: left (-4.0), center (0.0), or right (4.0)
-	# Matching visual lane width of 4.0 (lines at +/- 2.0)
-	var lanes = [-4.0, 0.0, 4.0]
+	# Choose one of three lanes: left, center, or right
+	# Dynamically calculate lanes based on lane_width
+	var l_width = 2.0 # Default fallback
+	if lane_line_spawner:
+		l_width = lane_line_spawner.lane_width
+	
+	# Middle lane is from -l_width to +l_width (Center 0)
+	# Side lanes should be the same width (2*l_width)
+	# So Side Centers are at +/- 2*l_width
+	var lanes = [-2.0 * l_width, 0.0, 2.0 * l_width]
 	
 	# Pick a different lane than last time
 	var available_indices = []
